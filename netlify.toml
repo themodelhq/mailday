@@ -1,0 +1,18 @@
+# Netlify configuration for the MailDay frontend (Next.js App Router / SSR)
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = ".next"
+
+# Official Next.js runtime for Netlify (handles SSR, ISR, image optimization, redirects).
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Security headers applied to all responses
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
