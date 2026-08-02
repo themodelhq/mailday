@@ -1,0 +1,94 @@
+// MailDay data model
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  avatarUrl    String?
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  messages     Message[]
+  refreshTokens RefreshToken[]
+  imapAccounts ImapAccount[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Mailbox {
+  INBOX
+  SENT
+  DRAFT
+  ARCHIVE
+  TRASH
+  SPAM
+}
+
+enum MessageState {
+  RECEIVED
+  SENT
+  DRAFT
+}
+
+model Message {
+  id          String        @id @default(uuid())
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  mailbox     Mailbox       @default(INBOX)
+  state       MessageState  @default(RECEIVED)
+  from        String
+  to          String[]
+  subject     String        @default("")
+  body        String        @default("")
+  snippet     String        @default("")
+  isRead      Boolean       @default(false)
+  isStarred   Boolean       @default(false)
+  isImportant Boolean       @default(false)
+  labels      String[]      @default([])
+  hasAttachments Boolean    @default(false)
+  sentAt      DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([ownerId, mailbox, sentAt])
+  @@index([ownerId, isRead])
+}
+
+model ImapAccount {
+  id          String   @id @default(uuid())
+  userId      String
+  host        String
+  port        Int      @default(993)
+  username    String
+  passwordEnc String
+  secure      Boolean  @default(true)
+  lastError   String?
+  createdAt   DateTime @default(now())
+  owner       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
