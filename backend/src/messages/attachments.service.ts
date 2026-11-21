@@ -25,7 +25,10 @@ export class AttachmentsService {
     const safeOriginalName = basename(file.originalname || 'attachment')
       .replace(/[\\u0000-\\u001f\\u007f]/g, '_')
       .slice(0, 255) || 'attachment';
-    const safeMimeType = /^[a-z0-9!#$&^_.+-]+\\/[a-z0-9!#$&^_.+-]+$/i.test(file.mimetype || '')
+    const mimeParts = (file.mimetype || '').split('/');
+    const safeMimeType = mimeParts.length === 2 && mimeParts.every((part) => /^[a-z0-9!#    const safeMimeType = /^[a-z0-9!#$&^_.+-]+\\/[a-z0-9!#$&^_.+-]+$/i.test(file.mimetype || '')
+      ? file.mimetype
+      : 'application/octet-stream';^_.+-]+$/i.test(part))
       ? file.mimetype
       : 'application/octet-stream';
 
