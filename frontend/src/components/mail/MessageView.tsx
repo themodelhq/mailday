@@ -9,7 +9,22 @@ import { useAppDispatch } from '@/hooks';
 import { openComposeWith } from '@/features/ui/uiSlice';
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!html) return '';
+  const withoutDangerousBlocks = html.replace(
+    /<(script|style|iframe|object|embed|svg|math|template|noscript)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
+    ' ',
+  );
+  const text = withoutDangerousBlocks
+    .replace(/<\/(p|div|li|tr|h[1-6]|blockquote)\s*>/gi, '\n')
+    .replace(/<(br|hr)\b[^>]*>/gi, '\n')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+  return text.replace(/[\t\r ]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
 }
 
 export default function MessageView({ id, onClosed }: { id: string; onClosed: () => void }) {
