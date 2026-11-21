@@ -52,7 +52,13 @@ export default function ComposeModal() {
   }, [open, draft, dispatch]);
 
   const send = useMutation({
-    mutationFn: () => draftId ? messagesApi.sendDraft(draftId, idempotencyKey || crypto.randomUUID()) : messagesApi.create({
+    mutationFn: async () => {
+      const key = idempotencyKey || crypto.randomUUID();
+      if (draftId) {
+        if (dirty) await messagesApi.update(draftId, { to: to.split(',').map(s => s.trim()).filter(Boolean), cc: cc.split(',').map(s => s.trim()).filter(Boolean), bcc: bcc.split(',').map(s => s.trim()).filter(Boolean), subject, body });
+        return messagesApi.sendDraft(draftId, key);
+      }
+      return messagesApi.create({
         to: to.split(',').map((s) => s.trim()).filter(Boolean),
         cc: cc.split(',').map((s) => s.trim()).filter(Boolean),
         bcc: bcc.split(',').map((s) => s.trim()).filter(Boolean),
@@ -60,8 +66,9 @@ export default function ComposeModal() {
         subject,
         body,
         mailbox: 'SENT' as MailboxName,
-        idempotencyKey: idempotencyKey || crypto.randomUUID(),
-      }),
+        idempotencyKey: key,
+      });
+    },
     onSuccess: (message) => {
       setDeliveryNotice('Your message has been queued for delivery.');
       setIdempotencyKey('');
@@ -119,7 +126,7 @@ export default function ComposeModal() {
             className="input"
             placeholder="To (comma-separated emails)"
             value={to}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={(e) => { setTo(e.target.value); setDirty(true); }}
           />
           <input className="input" placeholder="CC (comma-separated emails)" value={cc} onChange={(e) => { setCc(e.target.value); setDirty(true); }} />
           <input className="input" placeholder="BCC (comma-separated emails)" value={bcc} onChange={(e) => { setBcc(e.target.value); setDirty(true); }} />
@@ -127,13 +134,13 @@ export default function ComposeModal() {
             className="input"
             placeholder="Subject"
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => { setSubject(e.target.value); setDirty(true); }}
           />
           <textarea
             className="input min-h-[180px] resize-y"
             placeholder="Write your message…"
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(e) => { setBody(e.target.value); setDirty(true); }}
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
