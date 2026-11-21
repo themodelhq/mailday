@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
@@ -38,7 +39,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.del(key);
   }
 
-  async invalidatePrefix(prefix: string): Promise<void> {
+  async acquireLock(key: string, ttlSeconds = 300): Promise<string | null> {\n    const token = randomUUID();\n    const result = await this.client.set(key, token, 'EX', ttlSeconds, 'NX');\n    return result === 'OK' ? token : null;\n  }\n\n  async releaseLock(key: string, token: string): Promise<void> {\n    const script = \"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end\";\n    await this.client.eval(script, 1, key, token);\n  }\n\n  async invalidatePrefix(prefix: string): Promise<void> {
     const keys = await this.client.keys(`${prefix}*`);
     if (keys.length) await this.client.del(...keys);
   }
