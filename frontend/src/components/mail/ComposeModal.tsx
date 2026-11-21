@@ -37,7 +37,7 @@ export default function ComposeModal() {
 
   // Prefill from a compose draft (e.g. an AI-generated reply) then clear it.
   useEffect(() => {
-    if (open && (draft.to || draft.subject || draft.body)) {
+    if (open && (draft.draftId || draft.to || draft.subject || draft.body || draft.cc || draft.bcc)) {
       setTo(draft.to ?? '');
       setCc(draft.cc ?? '');
       setBcc(draft.bcc ?? '');
@@ -108,15 +108,17 @@ export default function ComposeModal() {
     onError: (e) => setAiError((e as Error).message),
   });
 
+  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-end sm:place-items-center">
-      <div className="absolute inset-0 bg-black/40" onClick={() => dispatch(closeCompose())} />
+      <div className="absolute inset-0 bg-black/40" onClick={closeAndSave} />
       <div className="card relative z-10 m-3 w-full max-w-2xl animate-fade-up">
         <div className="flex items-center justify-between border-b border-slate-200/70 px-4 py-3 dark:border-white/10">
           <h2 className="font-semibold">New message</h2>
-          <button className="btn-ghost h-8 w-8 !px-0" onClick={() => dispatch(closeCompose())}>
+          <button className="btn-ghost h-8 w-8 !px-0" onClick={closeAndSave}>
             <X className="h-4 w-4" />
           </button>
         </div>
