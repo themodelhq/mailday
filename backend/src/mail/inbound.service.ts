@@ -78,16 +78,31 @@ export class InboundService {
       const user = await this.prisma.user.findFirst({ where: { email: recipient, isActive: true } });
       if (!user) { results.push({ recipient, status: 'UNROUTABLE' }); continue; }
       let receipt: { id: string };
+      let claimStatus = 'RECEIVED';
       try {
-        receipt = await this.prisma.inboundReceipt.create({ data: { provider, providerMessageId, recipient, ownerId: user.id } });
+        receipt = await this.prisma.inboundReceipt.create({ data: { provider, providerMessageId, recipient, ownerId: user.id, status: 'RECEIVED' } });
       } catch (e) {
-        // Duplicate receipt is idempotent. Failed receipts may be safely retried.
-        if ((e as { code?: string }).code === 'P2002') {
-          const existing = await this.prisma.inboundReceipt.findUnique({ where: { provider_providerMessageId_recipient: { provider, providerMessageId, recipient } } });
-          if (!existing || existing.status === 'PROCESSED') { results.push({ recipient, status: 'DUPLICATE' }); continue; }
-          receipt = await this.prisma.inboundReceipt.update({ where: { id: existing.id }, data: { status: 'RECEIVED', error: null, messageId: null } });
-        } else throw e;
+        if ((e as { code?: string }).code !== 'P2002') throw e;
+        const existing = await this.prisma.inboundReceipt.findUnique({ where: { provider_providerMessageId_recipient: { provider, providerMessageId, recipient } } });
+        if (!existing || existing.status === 'PROCESSED') { results.push({ recipient, status: 'DUPLICATE' }); continue; }
+        if (existing.status === 'PROCESSING') {
+          const staleBefore = new Date(Date.now() - 15 * 60 * 1000);
+          const recovered = await this.prisma.inboundReceipt.updateMany({
+            where: { id: existing.id, status: 'PROCESSING', receivedAt: { lt: staleBefore } },
+            data: { status: 'RECEIVED', receivedAt: new Date(), error: 'Recovered stale processing receipt' },
+          });
+          if (!recovered.count) { results.push({ recipient, status: 'IN_PROGRESS' }); continue; }
+          claimStatus = 'RECEIVED';
+        } else {
+          claimStatus = existing.status;
+        }
+        receipt = { id: existing.id };
       }
+      const claimed = await this.prisma.inboundReceipt.updateMany({
+        where: { id: receipt.id, status: claimStatus },
+        data: { status: 'PROCESSING', receivedAt: new Date(), error: null, messageId: null },
+      });
+      if (!claimed.count) { results.push({ recipient, status: 'IN_PROGRESS' }); continue; }
       let createdMessageId: string | null = null;
       const writtenFiles: string[] = [];
       try {
