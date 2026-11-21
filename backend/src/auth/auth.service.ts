@@ -52,7 +52,7 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ email: normalized.toLowerCase() }, { username: normalized.toLowerCase() }] },
     });
-    if (!user || !user.isActive) return null;
+    if (!user || user.isActive === false) return null;
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return null;
     return user;
