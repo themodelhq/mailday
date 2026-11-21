@@ -4,6 +4,7 @@ import {
   OnModuleInit,
   OnModuleDestroy,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
 import { simpleParser, ParsedMail } from 'mailparser';
@@ -80,19 +81,48 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
   }
 
   async connectAccount(user: AuthUser, dto: { host: string; port?: number; username: string; password: string; secure?: boolean }) {
+    const host = dto.host.trim();
+    const port = dto.port ?? 993;
+    const username = dto.username.trim();
+    if (!host || !username || !dto.password || port < 1 || port > 65535) {
+      throw new BadRequestException('Host, username, password and a valid port are required');
+    }
+
+    // Verify credentials and connection before storing the account.
+    const probe = new ImapFlow({
+      host,
+      port,
+      secure: dto.secure ?? true,
+      auth: { user: username, pass: dto.password },
+      logger: false,
+    });
+    try {
+      await probe.connect();
+      await probe.logout();
+    } catch {
+      await probe.close().catch(() => undefined);
+      throw new BadRequestException('Could not connect to this IMAP account. Check the server, port, security and credentials.');
+    }
+
     const account = await this.prisma.imapAccount.create({
       data: {
         userId: user.id,
-        host: dto.host,
-        port: dto.port ?? 993,
-        username: dto.username,
+        host,
+        port,
+        username,
         passwordEnc: this.crypto.encrypt(dto.password),
         secure: dto.secure ?? true,
       },
     });
-    // Best-effort immediate sync
-    void this.pollAccount(account);
-    return this.toSafe(account);
+    // Attempt immediate synchronization. If the account connects but initial
+    // sync fails, retain the account and expose lastError for troubleshooting.
+    try {
+      await this.pollAccount(account);
+    } catch (e) {
+      this.logger.warn(`Initial sync for ${host} failed: ${(e as Error).message}`);
+    }
+    const refreshed = await this.prisma.imapAccount.findUnique({ where: { id: account.id } });
+    return this.toSafe(refreshed ?? account);
   }
 
   async listAccounts(user: AuthUser): Promise<SafeAccount[]> {
