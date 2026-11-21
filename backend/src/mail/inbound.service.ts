@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { ElasticsearchService } from '../search/elasticsearch.service';
 import { AttachmentScanner } from '../messages/attachment-scanner.service';
+import { htmlEmailToText } from '../common/html-email-to-text';
 
 @Injectable()
 export class InboundService {
