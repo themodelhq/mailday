@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
-import { Mail, Github, Chrome } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { authApi, isAuthed } from '@/lib/api';
 import { useAppDispatch } from '@/hooks';
 import { setSession, clearSession } from '@/features/session/sessionSlice';
@@ -67,18 +67,9 @@ export default function LoginPage() {
           <h1 className="text-xl font-semibold">Welcome back</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in to your mailbox.</p>
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <button className="btn-ghost border border-slate-300 dark:border-white/10" type="button">
-              <Chrome className="h-4 w-4" /> Google
-            </button>
-            <button className="btn-ghost border border-slate-300 dark:border-white/10" type="button">
-              <Github className="h-4 w-4" /> GitHub
-            </button>
-          </div>
-
           <div className="my-5 flex items-center gap-3 text-xs text-slate-400">
             <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
-            or with email
+            sign in with your account
             <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
           </div>
 
@@ -104,9 +95,7 @@ export default function LoginPage() {
           No account?{' '}
           <Link href="/signup" className="font-medium text-brand-600">Create one</Link>
         </p>
-        <p className="mt-2 text-center text-xs text-slate-400">
-          Demo: <span className="font-mono">demo@mailday.app</span> / <span className="font-mono">demo1234</span>
-        </p>
+
       </div>
     </main>
   );
