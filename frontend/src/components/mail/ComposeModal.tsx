@@ -35,7 +35,8 @@ export default function ComposeModal() {
   const [aiError, setAiError] = useState('');
   const [deliveryNotice, setDeliveryNotice] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState('');
-  const [scheduledAt, setScheduledAt] = useState('');\n  const [attachmentError, setAttachmentError] = useState('');\n  const [uploading, setUploading] = useState(false);\n  const { data: attachments = [] } = useQuery({ queryKey: ['attachments', draftId], queryFn: () => messagesApi.attachments(draftId!), enabled: Boolean(draftId) });
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [attachmentError, setAttachmentError] = useState('');\n  const [uploading, setUploading] = useState(false);\n  const { data: attachments = [] } = useQuery({ queryKey: ['attachments', draftId], queryFn: () => messagesApi.attachments(draftId!), enabled: Boolean(draftId) });
 
   // Prefill from a compose draft (e.g. an AI-generated reply) then clear it.
   useEffect(() => {
