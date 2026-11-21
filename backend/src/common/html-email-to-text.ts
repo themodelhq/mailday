@@ -34,5 +34,6 @@ export function htmlEmailToText(input: string): string {
     .replace(/[\t\r ]+/g, ' ')
     .replace(/\n[ \t]+/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\n+/, '')
     .trim();
 }
