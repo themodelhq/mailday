@@ -94,7 +94,7 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
           <button className="btn-ghost h-9 w-9 !px-0" onClick={() => trash.mutate()} title="Move to trash">
             <Trash2 className="h-4 w-4" />
           </button>
-          <button className="btn-primary" title="Reply" onClick={() => aiGen.mutate('reply')}>
+          <button className="btn-primary" title="Reply" onClick={() => dispatch(openComposeWith({ to: m.from, subject: `Re: ${m.subject}`, body: '', threadId: m.threadId ?? m.id, inReplyTo: m.id }))>
             <Reply className="h-4 w-4" /> Reply
           </button>
         </div>
