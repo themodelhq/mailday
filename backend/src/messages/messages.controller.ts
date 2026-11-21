@@ -109,8 +109,8 @@ export class MessagesController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/send')
-  sendDraft(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { idempotencyKey?: string }) {
-    return this.messages.sendDraft(user, id, body?.idempotencyKey);
+  sendDraft(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { idempotencyKey?: string; scheduledAt?: string }) {
+    return this.messages.sendDraft(user, id, body?.idempotencyKey, body?.scheduledAt);
   }
 
   @UseGuards(JwtAuthGuard)
