@@ -51,7 +51,7 @@ export class InboundService {
     for (const recipient of recipients) {
       const user = await this.prisma.user.findFirst({ where: { email: recipient, isActive: true } });
       if (!user) { results.push({ recipient, status: 'UNROUTABLE' }); continue; }
-      let receipt;
+      let receipt: { id: string };
       try {
         receipt = await this.prisma.inboundReceipt.create({ data: { provider, providerMessageId, recipient, ownerId: user.id } });
       } catch (e) {
@@ -63,6 +63,12 @@ export class InboundService {
         } else throw e;
       }
       try {
+        const existingMessage = await this.prisma.message.findFirst({ where: { ownerId: user.id, labels: { has: `mid:${providerMessageId}` } } });
+        if (existingMessage) {
+          await this.prisma.inboundReceipt.update({ where: { id: receipt.id }, data: { status: 'PROCESSED', messageId: existingMessage.id, processedAt: new Date() } });
+          results.push({ recipient, status: 'DUPLICATE' });
+          continue;
+        }
         const message = await this.prisma.message.create({ data: {
           ownerId: user.id, from, to: [recipient], subject, body, snippet,
           mailbox: Mailbox.INBOX, state: MessageState.RECEIVED,
