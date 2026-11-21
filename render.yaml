@@ -67,6 +67,8 @@ services:
         sync: false
       - key: INBOUND_WEBHOOK_TOKEN
         generateValue: true
+      - key: ATTACHMENTS_DIR
+        value: /var/data/mailday-attachments
 
 databases:
   - name: mailday-db
