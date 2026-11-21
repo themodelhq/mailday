@@ -1,5 +1,5 @@
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
-import { Logger, InternalServerErrorException } from '@nestjs/common';
+import { Logger, BadRequestException } from '@nestjs/common';
 
 describe('AllExceptionsFilter operational logging safety', () => {
   let filter: AllExceptionsFilter;
@@ -47,7 +47,7 @@ describe('AllExceptionsFilter operational logging safety', () => {
 
   it('does not log client errors', () => {
     const { host } = makeContext('/api/login?email=user@example.com', '/api/login');
-    filter.catch(new InternalServerErrorException('test'), host);
+    filter.catch(new BadRequestException('test'), host);
     expect(loggerSpy).not.toHaveBeenCalled();
   });
 
