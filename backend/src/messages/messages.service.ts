@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException, Logger, ServiceUnavailableException, BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
+
 import { Prisma, Mailbox, MessageState, Message } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -21,6 +24,7 @@ type MessageSummary = Omit<Message, 'ownerId' | 'body' | 'createdAt' | 'updatedA
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger('Messages');
+  private readonly attachmentStorageDir = process.env.ATTACHMENTS_DIR || join(process.cwd(), 'uploads');
 
   constructor(
     private readonly prisma: PrismaService,
@@ -203,7 +207,11 @@ export class MessagesService {
 
   async remove(user: AuthUser, id: string) {
     await this.getById(user, id);
+    const attachments = await this.prisma.attachment.findMany({ where: { messageId: id }, select: { storageName: true } });
     await this.prisma.message.delete({ where: { id } });
+    // Database cascades remove attachment metadata; remove the corresponding
+    // UUID-backed files as well to prevent storage leaks from deleted messages.
+    await Promise.all(attachments.map((attachment) => unlink(join(this.attachmentStorageDir, attachment.storageName)).catch(() => undefined)));
     await this.es.removeMessage(id);
     await this.redis.invalidatePrefix(this.cachePrefix(user.id));
     return { success: true };
