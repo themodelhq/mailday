@@ -28,6 +28,7 @@ model User {
   messages     Message[]
   refreshTokens RefreshToken[]
   imapAccounts ImapAccount[]
+  outboundDeliveries OutboundDelivery[]
 }
 
 model RefreshToken {
@@ -52,6 +53,8 @@ enum MessageState {
   RECEIVED
   SENT
   DRAFT
+  QUEUED
+  FAILED
 }
 
 model Message {
@@ -76,6 +79,7 @@ model Message {
 
   @@index([ownerId, mailbox, sentAt])
   @@index([ownerId, isRead])
+  outboundDelivery OutboundDelivery?
 }
 
 model ImapAccount {
