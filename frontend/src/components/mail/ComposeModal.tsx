@@ -37,7 +37,8 @@ export default function ComposeModal() {
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [attachmentError, setAttachmentError] = useState('');
-  const [uploading, setUploading] = useState(false);\n  const { data: attachments = [] } = useQuery({ queryKey: ['attachments', draftId], queryFn: () => messagesApi.attachments(draftId!), enabled: Boolean(draftId) });
+  const [uploading, setUploading] = useState(false);
+  const { data: attachments = [] } = useQuery({ queryKey: ['attachments', draftId], queryFn: () => messagesApi.attachments(draftId!), enabled: Boolean(draftId) });
 
   // Prefill from a compose draft (e.g. an AI-generated reply) then clear it.
   useEffect(() => {
@@ -115,7 +116,8 @@ export default function ComposeModal() {
     onError: (e) => setAiError((e as Error).message),
   });
 
-  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };\n\n  const attachFiles = async (files: FileList | null) => {
+  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };\n
+  const attachFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     setAttachmentError('');
     setUploading(true);
