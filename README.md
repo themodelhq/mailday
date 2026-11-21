@@ -91,9 +91,9 @@ npm run seed
 ## Deploy to Render (backend)
 
 1. Create a new **Web Service** from the repo, Root Directory `backend`.
-2. Runtime: Node, Build: `npm install && npx prisma generate && npx prisma migrate deploy`, Start: `npm run start:prod`.
+2. Runtime: Node, Build: `npm ci && npx prisma generate && npm run build`, Start: `npx prisma migrate deploy && npm run start:prod` (migrations run at service startup, not during build).
 3. Add a **PostgreSQL** and **Redis** instance; map env vars: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL`.
-4. `render.yaml` (blueprint) provisions all of this automatically.
+4. `render.yaml` (blueprint) provisions all of this automatically. See [`docs/BACKUP_AND_RECOVERY.md`](docs/BACKUP_AND_RECOVERY.md) for backup, restore-drill, and recovery procedures.
 
 ---
 
