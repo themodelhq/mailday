@@ -60,3 +60,35 @@ describe('BounceService', () => {
     expect(tx.message.update).toHaveBeenCalledWith({ where: { id: 'message-1' }, data: { state: 'FAILED' } });
   });
 });
+
+describe('BounceService payload validation', () => {
+  const prisma: any = {};
+  const service = new BounceService(prisma, config);
+
+  it('rejects malformed recipient addresses', async () => {
+    await expect(service.receive('secret-token', {
+      provider: 'test', eventId: 'evt', messageId: 'smtp-id', recipient: 'not-an-email',
+    })).rejects.toThrow('recipient must be a valid email address');
+  });
+
+  it('rejects oversized provider/event/message/recipient fields', async () => {
+    await expect(service.receive('secret-token', {
+      provider: 'x'.repeat(257), eventId: 'evt', messageId: 'smtp-id', recipient: 'a@example.test',
+    })).rejects.toThrow('provider exceeds 256 characters');
+    await expect(service.receive('secret-token', {
+      provider: 'test', eventId: 'x'.repeat(256), messageId: 'smtp-id', recipient: 'a@example.test',
+    })).rejects.toThrow('eventId exceeds 255 characters');
+    await expect(service.receive('secret-token', {
+      provider: 'test', eventId: 'evt', messageId: 'x'.repeat(501), recipient: 'a@example.test',
+    })).rejects.toThrow('messageId exceeds 500 characters');
+    await expect(service.receive('secret-token', {
+      provider: 'test', eventId: 'evt', messageId: 'smtp-id', recipient: 'x'.repeat(321),
+    })).rejects.toThrow('recipient exceeds 320 characters');
+  });
+
+  it('rejects invalid bouncedAt timestamps', async () => {
+    await expect(service.receive('secret-token', {
+      provider: 'test', eventId: 'evt', messageId: 'smtp-id', recipient: 'a@example.test', bouncedAt: 'invalid',
+    })).rejects.toThrow('bouncedAt must be a valid timestamp');
+  });
+});
