@@ -2,8 +2,8 @@
  * Convert untrusted HTML email content to plain text for display/indexing.
  * This is intentionally text-only: Mailday does not render inbound HTML.
  */
-const BLOCKED_CONTENT = /<(script|style|iframe|object|embed|svg|math|template|noscript)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>/gi;
-const BLOCK_TAGS = /<\\/?(p|div|li|tr|h[1-6]|blockquote|br|hr)\\b[^>]*>/gi;
+const BLOCKED_CONTENT = /<(script|style|iframe|object|embed|svg|math|template|noscript)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+const BLOCK_TAGS = /<\/?(p|div|li|tr|h[1-6]|blockquote|br|hr)\b[^>]*>/gi;
 const ALL_TAGS = /<[^>]*>/g;
 
 function decodeEntity(entity: string): string {
@@ -28,11 +28,11 @@ export function htmlEmailToText(input: string): string {
   if (!input) return '';
   const safe = input.replace(BLOCKED_CONTENT, ' ');
   return safe
-    .replace(BLOCK_TAGS, '\\n')
+    .replace(BLOCK_TAGS, '\n')
     .replace(ALL_TAGS, '')
     .replace(/&([a-zA-Z]+|#x[0-9a-fA-F]+|#X[0-9a-fA-F]+|#[0-9]+);/g, (_, entity: string) => decodeEntity(entity))
-    .replace(/[\\t\\r ]+/g, ' ')
-    .replace(/\\n[ \\t]+/g, '\\n')
-    .replace(/\\n{3,}/g, '\\n\\n')
+    .replace(/[\t\r ]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
