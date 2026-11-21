@@ -45,13 +45,13 @@ export class InboundService {
     const text = payload.text ?? parsed?.text ?? '';
     // Store plain text for inbound messages until a proven HTML sanitizer is integrated.
     const body = String(text || html)
-      .replace(/<\\s*(script|style)[^>]*>[\\s\\S]*?<\\/\\s*\\1\\s*>/gi, '')
+      .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\/\s*\1\s*>/gi, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/gi, ' ')
       .replace(/&amp;/gi, '&')
       .replace(/&lt;/gi, '<')
       .replace(/&gt;/gi, ' ')
-      .replace(/\\s+/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
     const snippet = body.slice(0, 160);
     const attachments = parsed?.attachments ?? [];
