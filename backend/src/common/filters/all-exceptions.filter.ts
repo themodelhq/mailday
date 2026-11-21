@@ -28,13 +28,25 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Internal server error';
 
     if (status >= 500) {
-      this.logger.error(`${request.method} ${request.url}`, (exception as Error)?.stack);
+      // Never log query strings, raw exception messages, or stack traces here:
+      // they can contain credentials, email content, provider payloads, or tokens.
+      const requestId = request.get('X-Request-ID') || 'unknown';
+      const exceptionType =
+        exception instanceof Error ? exception.name : 'UnknownException';
+      this.logger.error(JSON.stringify({
+        type: 'http_exception',
+        requestId,
+        method: request.method,
+        path: request.path,
+        statusCode: status,
+        exceptionType,
+      }));
     }
 
     response.status(status).json({
       statusCode: status,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: request.path,
       message:
         typeof message === 'string'
           ? message
