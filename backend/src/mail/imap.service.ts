@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { ElasticsearchService } from '../search/elasticsearch.service';
 import { CryptoService } from '../common/crypto.service';
+import { htmlEmailToText } from '../common/html-email-to-text';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 
 // mailparser's from/to can be a single AddressObject or an array of them.
@@ -250,10 +251,8 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     const fromAddress = fromList[0] ?? 'unknown@unknown';
     const toAddresses = extractAddresses(parsed.to);
     const subject = parsed.subject ?? '';
-    const body: string =
-      (parsed.html as string) || (parsed.text as string) || (parsed.textAsHtml as string) || '';
-    const textForSnippet = parsed.text ?? '';
-    const snippet = textForSnippet.replace(/\s+/g, ' ').slice(0, 160);
+    const body = htmlEmailToText(String(parsed.text || parsed.html || parsed.textAsHtml || ''));
+    const snippet = body.replace(/\\s+/g, ' ').slice(0, 160);
 
     const created = await this.prisma.message.create({
       data: {
