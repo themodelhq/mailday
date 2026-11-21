@@ -32,7 +32,9 @@ export class BounceService {
     for (const field of ['provider', 'eventId', 'messageId', 'recipient'] as const) {
       if (typeof payload[field] !== 'string' || !payload[field].trim()) throw new BadRequestException(`${field} is required`);
     }
+    if (payload.reason !== undefined && typeof payload.reason !== 'string') throw new BadRequestException('reason must be a string');
     if (payload.reason && payload.reason.length > 2000) throw new BadRequestException('reason exceeds 2000 characters');
+    if (payload.bouncedAt !== undefined && typeof payload.bouncedAt !== 'string') throw new BadRequestException('bouncedAt must be a string');
     const provider = payload.provider.trim().slice(0, 100);
     const eventId = payload.eventId.trim().slice(0, 255);
     const messageId = payload.messageId.trim();
@@ -49,6 +51,7 @@ export class BounceService {
       include: { message: true },
     });
     if (!delivery) throw new NotFoundException('Outbound delivery not found for provider message ID');
+    if (!['SENT', 'BOUNCED'].includes(delivery.status)) throw new BadRequestException('Bounce events can only be applied to sent deliveries');
 
     const recipients = [...delivery.message.to, ...delivery.message.cc, ...delivery.message.bcc]
       .map((address) => address.trim().toLowerCase());
