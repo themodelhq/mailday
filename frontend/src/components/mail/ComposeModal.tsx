@@ -59,7 +59,7 @@ export default function ComposeModal() {
     mutationFn: async () => {
       const key = idempotencyKey || crypto.randomUUID();
       if (draftId) {
-        if (dirty) await messagesApi.update(draftId, { to: to.split(',').map(s => s.trim()).filter(Boolean), cc: cc.split(',').map(s => s.trim()).filter(Boolean), bcc: bcc.split(',').map(s => s.trim()).filter(Boolean), subject, body });
+        if (dirty) await messagesApi.update(draftId, { to: to.split(',').map(s => s.trim()).filter(Boolean), cc: cc.split(',').map(s => s.trim()).filter(Boolean), bcc: bcc.split(',').map(s => s.trim()).filter(Boolean), subject, body: bodyWithSignature() });
         return messagesApi.sendDraft(draftId, key, scheduledAt ? new Date(scheduledAt).toISOString() : undefined);
       }
       return messagesApi.create({
