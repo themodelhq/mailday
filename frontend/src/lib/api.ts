@@ -292,4 +292,8 @@ export const messagesApi = {
     fetchWithAuth<Message>(`${api}/messages/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   remove: (id: string) =>
     fetchWithAuth<{ success: boolean }>(`${api}/messages/${id}`, { method: 'DELETE' }),
+  attachments: (id: string) => fetchWithAuth<AttachmentInfo[]>(`${api}/messages/${id}/attachments`),
+  uploadAttachment: (id: string, file: File) => { const fd = new FormData(); fd.append('file', file); return fetchWithAuth<AttachmentInfo>(`${api}/messages/${id}/attachments`, { method: 'POST', body: fd }); },
+  downloadAttachment: async (id: string, filename: string) => { const token = getAccessToken(); const res = await fetch(`${api}/messages/attachments/${id}/download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} }); if (!res.ok) throw new Error('Attachment download failed'); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); },
+  deleteAttachment: (id: string) => fetchWithAuth<{ success: boolean }>(`${api}/messages/attachments/${id}`, { method: 'DELETE' }),
 };
