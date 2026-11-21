@@ -25,8 +25,9 @@ export class AuthService {
 
   private async issueTokens(userId: string, email: string, username: string, role: string, db: Prisma.TransactionClient | PrismaService = this.prisma): Promise<TokenPair> {
     const jti = uuid();
+    const accessJti = uuid();
     const accessToken = this.jwt.sign(
-      { sub: userId, email, username, role },
+      { sub: userId, email, username, role, jti: accessJti },
       { secret: this.config.get<string>('JWT_SECRET'), expiresIn: this.config.get<string>('JWT_EXPIRES_IN') ?? '15m' },
     );
     const refreshToken = this.jwt.sign(
@@ -109,11 +110,18 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(refreshToken: string): Promise<{ success: boolean }> {
+  async logout(refreshToken: string, accessToken: string): Promise<{ success: boolean }> {
     try {
-      const payload = this.jwt.verify(refreshToken, { secret: this.config.get<string>('JWT_REFRESH_SECRET') }) as { jti?: string };
-      if (payload?.jti) await this.prisma.refreshToken.delete({ where: { token: payload.jti } }).catch(() => null);
+      const refreshPayload = this.jwt.verify(refreshToken, { secret: this.config.get<string>('JWT_REFRESH_SECRET') }) as { jti?: string };
+      if (refreshPayload?.jti) await this.prisma.refreshToken.delete({ where: { token: refreshPayload.jti } }).catch(() => null);
     } catch { /* already invalid */ }
+    try {
+      const accessPayload = this.jwt.verify(accessToken, { secret: this.config.get<string>('JWT_SECRET') }) as { jti?: string; exp?: number };
+      if (accessPayload?.jti && accessPayload.exp) {
+        const ttl = Math.max(1, accessPayload.exp - Math.floor(Date.now() / 1000));
+        await this.redis.client.set(`auth:revoked:${accessPayload.jti}`, '1', 'EX', ttl);
+      }
+    } catch { /* access token will naturally expire */ }
     return { success: true };
   }
 }
