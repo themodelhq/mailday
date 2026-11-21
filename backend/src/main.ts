@@ -29,7 +29,7 @@ async function bootstrap() {
   // prod Netlify domain plus deploy-preview URLs are configured).
   const configuredOrigins = (config.get<string>('FRONTEND_URL') ?? '')
     .split(',')
-    .map((o) => o.trim().replace(/\\/+$/, ''))
+    .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 
   const allowedOrigins = new Set<string>([
@@ -59,7 +59,7 @@ async function bootstrap() {
       // Allow non-browser requests (curl, server-to-server, health checks) with no Origin header.
       if (!origin) return callback(null, true);
 
-      const normalized = origin.replace(/\\/+$/, '');
+      const normalized = origin.replace(/\/+$/, '');
       if (allowedOrigins.has(normalized)) return callback(null, true);
 
       logger.warn(`Blocked CORS request from origin: ${origin}`);
