@@ -27,6 +27,11 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
     if (this.running || !this.mail.enabled) return;
     this.running = true;
     try {
+      // Recover jobs abandoned by a crashed worker after the processing lease expires.
+      await this.prisma.outboundDelivery.updateMany({
+        where: { status: 'PROCESSING', lockedAt: { lt: new Date(Date.now() - 3 * 60 * 1000) } },
+        data: { status: 'RETRYING', lockedAt: null, nextAttemptAt: new Date() },
+      });
       const due = await this.prisma.outboundDelivery.findMany({
         where: { status: { in: ['QUEUED', 'RETRYING'] }, nextAttemptAt: { lte: new Date() } },
         orderBy: { createdAt: 'asc' }, take: 10, select: { id: true },
