@@ -7,6 +7,7 @@ import { ElasticsearchService } from '../search/elasticsearch.service';
 import { MailService } from '../mail/mail.service';
 import { CreateMessageDto, UpdateMessageDto } from './dto/messages.dto';
 import { AuthUser } from '../common/decorators/current-user.decorator';
+import { htmlEmailToText } from '../common/html-email-to-text';
 
 interface ListInput {
   mailbox?: string;
@@ -104,7 +105,7 @@ export class MessagesService {
   }
 
   async create(user: AuthUser, dto: CreateMessageDto) {
-    const snippet = (dto.body ?? '').replace(/<[^>]+>/g, ' ').slice(0, 160);
+    const snippet = htmlEmailToText(dto.body ?? '').slice(0, 160);
     const mailbox = dto.mailbox ?? Mailbox.INBOX;
     const isOutbound = mailbox === Mailbox.SENT;
     const isDraft = mailbox === Mailbox.DRAFT;
@@ -188,7 +189,7 @@ export class MessagesService {
         ...(dto.cc !== undefined ? { cc: dto.cc } : {}),
         ...(dto.bcc !== undefined ? { bcc: dto.bcc } : {}),
         ...(dto.subject !== undefined ? { subject: dto.subject } : {}),
-        ...(dto.body !== undefined ? { body: dto.body, snippet: dto.body.replace(/<[^>]+>/g, ' ').slice(0, 160) } : {}),
+        ...(dto.body !== undefined ? { body: dto.body, snippet: htmlEmailToText(dto.body).slice(0, 160) } : {}),
         ...(dto.isRead !== undefined ? { isRead: dto.isRead } : {}),
         ...(dto.isStarred !== undefined ? { isStarred: dto.isStarred } : {}),
         ...(dto.mailbox !== undefined ? { mailbox: dto.mailbox } : {}),
