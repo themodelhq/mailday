@@ -216,7 +216,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     });
     const accountLockKey = `mailday:imap-account:${account.id}`;
     let accountLockToken: string | null = null;
-    let mailboxLock: ReturnType<typeof client.getMailboxLock> | undefined;
+    let mailboxLock: { release: () => void } | undefined;
 
     try {
       accountLockToken = await this.redis.acquireLock(accountLockKey, 600);
