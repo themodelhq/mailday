@@ -29,6 +29,7 @@ model User {
   refreshTokens RefreshToken[]
   imapAccounts ImapAccount[]
   outboundDeliveries OutboundDelivery[]
+  inboundReceipts InboundReceipt[]
 }
 
 model RefreshToken {
@@ -128,4 +129,22 @@ model OutboundDelivery {
 
   @@index([status, nextAttemptAt])
   @@index([ownerId, createdAt])
+}
+
+
+model InboundReceipt {
+  id String @id @default(uuid())
+  provider String @default("webhook")
+  providerMessageId String
+  recipient String
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  messageId String?
+  status String @default("RECEIVED")
+  error String?
+  receivedAt DateTime @default(now())
+  processedAt DateTime?
+  @@unique([provider, providerMessageId, recipient])
+  @@index([ownerId, receivedAt])
+  @@index([status, receivedAt])
 }
