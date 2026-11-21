@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { json, urlencoded } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -22,7 +23,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
   // Lightweight request observability: a server-generated correlation ID and
   // method/path/status/latency logs. Query strings are intentionally omitted.
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const requestId = randomUUID();
     const startedAt = Date.now();
     res.setHeader('X-Request-ID', requestId);
