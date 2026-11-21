@@ -172,7 +172,12 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
   async pollAll() {
     if (this.polling) return;
     this.polling = true;
+    const lockKey = 'mailday:imap-poller:lock';
+    let lockToken: string | null = null;
     try {
+      // Redis lock prevents duplicate polling when the API is scaled to multiple instances.
+      lockToken = await this.redis.acquireLock(lockKey, 600);
+      if (!lockToken) return;
       const accounts = await this.prisma.imapAccount.findMany();
       for (const account of accounts) {
         await this.pollAccount(account).catch((e) =>
@@ -180,10 +185,13 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
         );
       }
     } catch (e) {
-      // Never let a poll-cycle failure (DB down, migrations not applied, etc.)
-      // escape as an unhandled rejection — that crashes the whole Node process.
       this.logger.error(`IMAP poll cycle failed: ${(e as Error)?.message}`);
     } finally {
+      if (lockToken) {
+        await this.redis.releaseLock(lockKey, lockToken).catch((e) =>
+          this.logger.warn(`Unable to release IMAP poller lock: ${(e as Error).message}`),
+        );
+      }
       this.polling = false;
     }
   }
