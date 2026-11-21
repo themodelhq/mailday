@@ -6,7 +6,7 @@ export interface UiState {
   theme: Theme;
   sidebarOpen: boolean;
   composeOpen: boolean;
-  composeDraft: { to?: string; subject?: string; body?: string };
+  composeDraft: { to?: string; subject?: string; body?: string; threadId?: string; inReplyTo?: string };
 }
 
 const initialTheme: Theme =
@@ -42,7 +42,7 @@ const uiSlice = createSlice({
     closeCompose(state) {
       state.composeOpen = false;
     },
-    openComposeWith(state, action: PayloadAction<{ to?: string; subject?: string; body?: string }>) {
+    openComposeWith(state, action: PayloadAction<{ to?: string; subject?: string; body?: string; threadId?: string; inReplyTo?: string }>) {
       state.composeOpen = true;
       state.composeDraft = action.payload;
     },
