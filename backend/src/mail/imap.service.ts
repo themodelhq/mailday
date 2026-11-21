@@ -87,10 +87,10 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     const host = dto.host.trim();
     const port = dto.port ?? 993;
     const username = dto.username.trim();
-    const validatedHost = await resolveValidatedImapHost(host);
-    if (!host || !username || !dto.password || port < 1 || port > 65535) {
+    if (!host || !username || !dto.password || !Number.isInteger(port) || port < 1 || port > 65535) {
       throw new BadRequestException('Host, username, password and a valid port are required');
     }
+    const validatedHost = await resolveValidatedImapHost(host);
 
     // Verify credentials and connection before storing the account.
     const probe = new ImapFlow({
@@ -267,7 +267,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
   private async importMessage(userId: string, parsed: ParsedMail, source: Buffer) {
     const messageId = parsed.messageId?.trim().slice(0, 500);
     const fallbackFingerprint = createHash('sha256').update(source).digest('hex');
-    const dedupLabel = messageId ? `mid:${messageId}` : `imap-sha256:${fallbackFingerprint}`;
+    const dedupLabel = messageId ? `mid:imap:${messageId}` : `imap-sha256:${fallbackFingerprint}`;
     const labelMid = dedupLabel.slice(0, 500);
     if (labelMid) {
       const dup = await this.prisma.message.count({
