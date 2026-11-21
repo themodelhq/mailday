@@ -5,7 +5,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { RedisService } from '../redis/redis.service';
 
-export interface JwtPayload { sub: string; email: string; username: string; role: string; jti?: string; }
+export interface JwtPayload { sub: string; email: string; username: string; role: string; jti?: string; sv?: number; }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -25,6 +25,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (!payload?.sub || !payload?.jti) throw new UnauthorizedException('Invalid token');
     const revoked = await this.redis.client.get(`auth:revoked:${payload.jti}`);
     if (revoked) throw new UnauthorizedException('Token revoked');
+    const currentVersion = Number(await this.redis.client.get(`auth:session-version:${payload.sub}`) ?? 0);
+    if (Number(payload.sv ?? 0) !== currentVersion) throw new UnauthorizedException('Session revoked');
     return { id: payload.sub, email: payload.email, username: payload.username, role: payload.role };
   }
 }
