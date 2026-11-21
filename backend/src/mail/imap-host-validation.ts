@@ -20,30 +20,46 @@ export function isPublicAddress(address: string): boolean {
     const normalized = address.toLowerCase();
     const inGlobalUnicast = normalized.startsWith('2') || normalized.startsWith('3');
     const excludedPrefixes = [
-      '2001:db8', // documentation
-      '2001:0:',  // Teredo
-      '2001:10:', // ORCHID
-      '2001:20:', // ORCHIDv2
-      '2002:',    // 6to4
-      '3fff:',    // documentation
+      '2001:db8', '2001:0:', '2001:10:', '2001:20:', '2002:', '3fff:',
     ];
     return inGlobalUnicast && !excludedPrefixes.some((prefix) => normalized.startsWith(prefix));
   }
   return false;
 }
 
-export async function validateImapHost(host: string): Promise<void> {
+export interface ValidatedImapHost {
+  originalHost: string;
+  address: string;
+  family: 4 | 6;
+  servername: string | false;
+}
+
+export async function resolveValidatedImapHost(host: string): Promise<ValidatedImapHost> {
   const normalized = host.trim().replace(/^\\[|\\]$/g, '');
   if (!normalized || normalized.includes('/') || normalized.includes('\\\\') || normalized.includes('@')) {
     throw new BadRequestException('Invalid IMAP server hostname');
   }
   try {
-    const addresses = isIP(normalized) ? [{ address: normalized }] : await lookup(normalized, { all: true, verbatim: true });
+    const literalFamily = isIP(normalized);
+    const addresses = literalFamily
+      ? [{ address: normalized, family: literalFamily }]
+      : await lookup(normalized, { all: true, verbatim: true });
     if (!addresses.length || addresses.some((entry) => !isPublicAddress(entry.address))) {
       throw new BadRequestException('IMAP servers must resolve to public IP addresses');
     }
+    const selected = addresses[0];
+    return {
+      originalHost: normalized,
+      address: selected.address,
+      family: selected.family as 4 | 6,
+      servername: literalFamily ? false : normalized,
+    };
   } catch (error) {
     if (error instanceof BadRequestException) throw error;
     throw new BadRequestException('Could not resolve IMAP server hostname');
   }
+}
+
+export async function validateImapHost(host: string): Promise<void> {
+  await resolveValidatedImapHost(host);
 }
