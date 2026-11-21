@@ -79,3 +79,110 @@ describe('InboundService request validation', () => {
     await expect(service.receive('test-token', { to: [ 'valid@mailday.app', 42 as any] })).rejects.toThrow('to array must contain only strings');
   });
 });
+
+
+describe('InboundService failure recovery', () => {
+  it('reclaims a FAILED receipt and processes a retry', async () => {
+    const receipt = { id: 'receipt-retry' };
+    const localPrisma: any = {
+      user: { findFirst: jest.fn(async () => ({ id: 'user-1' })) },
+      inboundReceipt: {
+        create: jest.fn()
+          .mockResolvedValueOnce(receipt)
+          .mockRejectedValueOnce({ code: 'P2002' }),
+        findUnique: jest.fn(async () => ({ id: receipt.id, status: 'FAILED', receivedAt: new Date() })),
+        updateMany: jest.fn()
+          .mockResolvedValueOnce({ count: 1 }) // initial receipt claim
+          .mockResolvedValueOnce({ count: 1 }) // retry claim from FAILED
+          .mockResolvedValueOnce({ count: 1 }), // retry PROCESSING claim
+        update: jest.fn(async () => ({})),
+      },
+      message: {
+        findFirst: jest.fn(async () => null),
+        create: jest.fn()
+          .mockRejectedValueOnce(new Error('temporary database failure'))
+          .mockResolvedValueOnce({ id: 'message-recovered' }),
+        delete: jest.fn(async () => ({})),
+      },
+    };
+    const localService = new InboundService(config, localPrisma, redis, es, scanner);
+
+    const first = await localService.receive('test-token', {
+      provider: 'test-provider', messageId: 'retry-id', to: 'user@mailday.app', text: 'hello',
+    });
+    expect(first.recipients).toEqual([{ recipient: 'user@mailday.app', status: 'FAILED' }]);
+    expect(localPrisma.inboundReceipt.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: receipt.id }, data: expect.objectContaining({ status: 'FAILED' }),
+    }));
+
+    const second = await localService.receive('test-token', {
+      provider: 'test-provider', messageId: 'retry-id', to: 'user@mailday.app', text: 'hello',
+    });
+    expect(second.recipients).toEqual([{ recipient: 'user@mailday.app', status: 'PROCESSED' }]);
+    expect(localPrisma.message.create).toHaveBeenCalledTimes(2);
+    expect(localPrisma.inboundReceipt.updateMany).toHaveBeenCalledTimes(3);
+  });
+
+  it('rolls back the created message if marking its receipt processed fails', async () => {
+    const localPrisma: any = {
+      user: { findFirst: jest.fn(async () => ({ id: 'user-1' })) },
+      inboundReceipt: {
+        create: jest.fn(async () => ({ id: 'receipt-rollback' })),
+        updateMany: jest.fn(async () => ({ count: 1 })),
+        update: jest.fn()
+          .mockRejectedValueOnce(new Error('receipt persistence outage'))
+          .mockResolvedValueOnce({}),
+      },
+      message: {
+        findFirst: jest.fn(async () => null),
+        create: jest.fn(async () => ({ id: 'message-partial' })),
+        delete: jest.fn(async () => ({})),
+      },
+    };
+    const localService = new InboundService(config, localPrisma, redis, es, scanner);
+    const result = await localService.receive('test-token', {
+      provider: 'test-provider', messageId: 'rollback-id', to: 'user@mailday.app', text: 'hello',
+    });
+
+    expect(result.recipients).toEqual([{ recipient: 'user@mailday.app', status: 'FAILED' }]);
+    expect(localPrisma.message.delete).toHaveBeenCalledWith({ where: { id: 'message-partial' } });
+    expect(localPrisma.inboundReceipt.update).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { id: 'receipt-rollback' }, data: expect.objectContaining({ status: 'FAILED', messageId: null }),
+    }));
+  });
+
+  it('rejects malware before creating receipts or messages', async () => {
+    const localScanner: any = { scan: jest.fn(async () => 'INFECTED') };
+    const localPrisma: any = {
+      user: { findFirst: jest.fn() },
+      inboundReceipt: { create: jest.fn() },
+      message: { create: jest.fn() },
+    };
+    const localService = new InboundService(config, localPrisma, redis, es, localScanner);
+    const rawMime = [
+      'From: sender@example.test',
+      'To: user@mailday.app',
+      'Subject: infected attachment',
+      'MIME-Version: 1.0',
+      'Content-Type: multipart/mixed; boundary="mailday-boundary"',
+      '',
+      '--mailday-boundary',
+      'Content-Type: text/plain',
+      '',
+      'body',
+      '--mailday-boundary',
+      'Content-Type: application/octet-stream',
+      'Content-Disposition: attachment; filename="sample.bin"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      'Y2hlY2s=',
+      '--mailday-boundary--',
+      '',
+    ].join('\\r\\n');
+
+    await expect(localService.receive('test-token', { rawMime })).rejects.toThrow('malware detected');
+    expect(localScanner.scan).toHaveBeenCalledTimes(1);
+    expect(localPrisma.inboundReceipt.create).not.toHaveBeenCalled();
+    expect(localPrisma.message.create).not.toHaveBeenCalled();
+  });
+});
