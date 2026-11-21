@@ -24,6 +24,8 @@ export default function ComposeModal() {
   const [subject, setSubject] = useState('');
   const [cc, setCc] = useState('');
   const [bcc, setBcc] = useState('');
+  const [threadId, setThreadId] = useState<string | undefined>();
+  const [inReplyTo, setInReplyTo] = useState<string | undefined>();
   const [body, setBody] = useState('');
   const [tone, setTone] = useState<AiTone>('professional');
   const [aiError, setAiError] = useState('');
@@ -36,6 +38,8 @@ export default function ComposeModal() {
       setTo(draft.to ?? '');
       setSubject(draft.subject ?? '');
       setBody(draft.body ?? '');
+      setThreadId(draft.threadId);
+      setInReplyTo(draft.inReplyTo);
       dispatch(clearComposeDraft());
     }
   }, [open, draft, dispatch]);
@@ -46,6 +50,7 @@ export default function ComposeModal() {
         to: to.split(',').map((s) => s.trim()).filter(Boolean),
         cc: cc.split(',').map((s) => s.trim()).filter(Boolean),
         bcc: bcc.split(',').map((s) => s.trim()).filter(Boolean),
+        threadId, inReplyTo,
         subject,
         body,
         mailbox: 'SENT' as MailboxName,
