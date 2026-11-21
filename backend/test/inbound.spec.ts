@@ -205,3 +205,37 @@ describe('InboundService failure recovery', () => {
     expect(localPrisma.message.create).not.toHaveBeenCalled();
   });
 });
+
+
+describe('InboundService payload resource limits', () => {
+  let service: InboundService;
+  beforeEach(() => { service = new InboundService(config, prisma, redis, es, scanner); });
+
+  it('rejects oversized direct text and HTML bodies before routing', async () => {
+    await expect(service.receive('test-token', { to: 'user@mailday.app', text: 'x'.repeat(1024 * 1024 + 1) }))
+      .rejects.toThrow('Inbound text body exceeds 1 MB limit');
+    await expect(service.receive('test-token', { to: 'user@mailday.app', html: 'x'.repeat(1024 * 1024 + 1) }))
+      .rejects.toThrow('Inbound HTML body exceeds 1 MB limit');
+  });
+
+  it('rejects oversized subject and sender fields', async () => {
+    await expect(service.receive('test-token', { to: 'user@mailday.app', subject: 'x'.repeat(999) }))
+      .rejects.toThrow('Inbound subject exceeds 998 bytes');
+    await expect(service.receive('test-token', { to: 'user@mailday.app', from: 'x'.repeat(321) }))
+      .rejects.toThrow('Inbound sender address exceeds 320 bytes');
+  });
+
+  it('rejects overlong recipient values and malformed recipient addresses', async () => {
+    await expect(service.receive('test-token', { to: ['x'.repeat(321)] }))
+      .rejects.toThrow('Inbound recipient address exceeds 320 bytes');
+    await expect(service.receive('test-token', { to: 'not-an-email' }))
+      .rejects.toThrow('Inbound recipient address is invalid');
+  });
+
+  it('rejects overlong provider and message identifiers', async () => {
+    await expect(service.receive('test-token', { to: 'user@mailday.app', provider: 'x'.repeat(257) }))
+      .rejects.toThrow('Inbound provider value is too long');
+    await expect(service.receive('test-token', { to: 'user@mailday.app', messageId: 'x'.repeat(256) }))
+      .rejects.toThrow('Inbound messageId exceeds 255 bytes');
+  });
+});
