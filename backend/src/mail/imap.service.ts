@@ -95,7 +95,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     // Verify credentials and connection before storing the account.
     const probe = new ImapFlow({
       host: validatedHost.address,
-      servername: validatedHost.servername,
+      ...(validatedHost.servername ? { servername: validatedHost.servername } : {}),
       port,
       secure: dto.secure ?? true,
       auth: { user: username, pass: dto.password },
