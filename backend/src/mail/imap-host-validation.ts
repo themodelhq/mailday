@@ -20,7 +20,7 @@ export function isPublicAddress(address: string): boolean {
     const normalized = address.toLowerCase();
     const inGlobalUnicast = normalized.startsWith('2') || normalized.startsWith('3');
     const excludedPrefixes = [
-      '2001:db8', '2001:0:', '2001:10:', '2001:20:', '2002:', '3fff:',
+      '2001:', '2002:', '3fff:',
     ];
     return inGlobalUnicast && !excludedPrefixes.some((prefix) => normalized.startsWith(prefix));
   }
