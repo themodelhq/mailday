@@ -116,7 +116,8 @@ export default function ComposeModal() {
     onError: (e) => setAiError((e as Error).message),
   });
 
-  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };\n
+  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };
+
   const attachFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     setAttachmentError('');
