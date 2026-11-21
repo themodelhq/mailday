@@ -26,6 +26,9 @@ export default function ComposeModal() {
   const [bcc, setBcc] = useState('');
   const [threadId, setThreadId] = useState<string | undefined>();
   const [inReplyTo, setInReplyTo] = useState<string | undefined>();
+  const [draftId, setDraftId] = useState<string | undefined>();
+  const [dirty, setDirty] = useState(false);
+  const [autosaveNotice, setAutosaveNotice] = useState('');
   const [body, setBody] = useState('');
   const [tone, setTone] = useState<AiTone>('professional');
   const [aiError, setAiError] = useState('');
@@ -40,13 +43,14 @@ export default function ComposeModal() {
       setBody(draft.body ?? '');
       setThreadId(draft.threadId);
       setInReplyTo(draft.inReplyTo);
+      setDraftId(draft.draftId);
+      setDirty(false);
       dispatch(clearComposeDraft());
     }
   }, [open, draft, dispatch]);
 
   const send = useMutation({
-    mutationFn: () =>
-      messagesApi.create({
+    mutationFn: () => draftId ? messagesApi.sendDraft(draftId, idempotencyKey || crypto.randomUUID()) : messagesApi.create({
         to: to.split(',').map((s) => s.trim()).filter(Boolean),
         cc: cc.split(',').map((s) => s.trim()).filter(Boolean),
         bcc: bcc.split(',').map((s) => s.trim()).filter(Boolean),
@@ -59,6 +63,8 @@ export default function ComposeModal() {
     onSuccess: (message) => {
       setDeliveryNotice('Your message has been queued for delivery.');
       setIdempotencyKey('');
+      setDraftId(undefined);
+      setDirty(false);
       qc.invalidateQueries({ queryKey: ['messages'] });
       setTo('');
       setCc('');
@@ -70,14 +76,24 @@ export default function ComposeModal() {
   });
 
   const saveDraft = useMutation({
-    mutationFn: () => messagesApi.create({ to: to.split(',').map(s => s.trim()).filter(Boolean), cc: cc.split(',').map(s => s.trim()).filter(Boolean), bcc: bcc.split(',').map(s => s.trim()).filter(Boolean), subject, body, mailbox: 'DRAFT' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['messages'] }); dispatch(closeCompose()); },
+    mutationFn: () => {
+      const payload = { to: to.split(',').map(s => s.trim()).filter(Boolean), cc: cc.split(',').map(s => s.trim()).filter(Boolean), bcc: bcc.split(',').map(s => s.trim()).filter(Boolean), subject, body, mailbox: 'DRAFT' as MailboxName };
+      return draftId ? messagesApi.update(draftId, payload) : messagesApi.create(payload);
+    },
+    onSuccess: (saved) => { setDraftId(saved.id); setDirty(false); setAutosaveNotice('Draft saved'); qc.invalidateQueries({ queryKey: ['messages'] }); },
   });
+
+  useEffect(() => {
+    if (!open || !dirty) return;
+    const timer = window.setTimeout(() => saveDraft.mutate(), 1200);
+    return () => window.clearTimeout(timer);
+  }, [open, dirty, to, cc, bcc, subject, body, draftId]);
 
   const generate = useMutation({
     mutationFn: () => aiApi.generate({ mode: 'draft', text: body || subject, subject, tone }),
     onSuccess: (res) => {
       setBody(res.text);
+      setDirty(true);
       setAiError('');
     },
     onError: (e) => setAiError((e as Error).message),
@@ -103,8 +119,8 @@ export default function ComposeModal() {
             value={to}
             onChange={(e) => setTo(e.target.value)}
           />
-          <input className="input" placeholder="CC (comma-separated emails)" value={cc} onChange={(e) => setCc(e.target.value)} />
-          <input className="input" placeholder="BCC (comma-separated emails)" value={bcc} onChange={(e) => setBcc(e.target.value)} />
+          <input className="input" placeholder="CC (comma-separated emails)" value={cc} onChange={(e) => { setCc(e.target.value); setDirty(true); }} />
+          <input className="input" placeholder="BCC (comma-separated emails)" value={bcc} onChange={(e) => { setBcc(e.target.value); setDirty(true); }} />
           <input
             className="input"
             placeholder="Subject"
@@ -153,6 +169,7 @@ export default function ComposeModal() {
               <Send className="h-4 w-4" /> {send.isPending ? 'Queuing…' : 'Queue send'}
             </button>
           </div>
+          {(autosaveNotice || saveDraft.isPending) && <p className="text-xs text-slate-500">{saveDraft.isPending ? 'Saving draft…' : autosaveNotice}</p>}
           {deliveryNotice && <p className="text-sm text-emerald-600">{deliveryNotice}</p>}
           {aiError && <p className="text-sm text-amber-500">AI unavailable: {aiError}</p>}
           {send.isError && <p className="text-sm text-red-500">{(send.error as Error).message}</p>}
