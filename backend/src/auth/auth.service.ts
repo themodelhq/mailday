@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -40,10 +41,19 @@ export class AuthService {
     const existing = await this.prisma.user.findFirst({ where: { OR: [{ email }, { username }] } });
     if (existing) throw new ConflictException('Email or username already in use');
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const user = await this.prisma.user.create({
-      data: { email, username, passwordHash, displayName: dto.displayName?.trim() || username },
-    });
-    this.logger.log(`Registered user ${user.email}`);
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: { email, username, passwordHash, displayName: dto.displayName?.trim() || username },
+      });
+    } catch (error) {
+      // A concurrent registration may pass the lookup but lose the unique constraint race.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Email or username already in use');
+      }
+      throw error;
+    }
+    this.logger.log('Registered new account');
     return this.issueTokens(user.id, user.email, user.username, user.role);
   }
 
