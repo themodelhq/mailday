@@ -95,7 +95,7 @@ export class InboundService {
         } });
         for (const attachment of attachments) {
           const storageName = randomUUID();
-          const originalName = (attachment.filename || 'attachment').split('/').join('_').split('\\\\').join('_').replace(/[\\r\\n]/g, '_').slice(0, 255);
+          const originalName = (attachment.filename || 'attachment').replace(/[\\/\\\\]/g, '_').replace(/[\\u0000-\\u001f\\u007f]/g, '_').trim().slice(0, 255) || 'attachment';
           await mkdir(this.storageDir, { recursive: true });
           await writeFile(join(this.storageDir, storageName), attachment.content, { flag: 'wx' });
           try {
