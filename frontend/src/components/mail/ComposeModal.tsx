@@ -112,7 +112,30 @@ export default function ComposeModal() {
     onError: (e) => setAiError((e as Error).message),
   });
 
-  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };\n\n  const attachFiles = async (files: FileList | null) => {\n    if (!files?.length) return; setAttachmentError(''); setUploading(true);\n    try {\n      if (!draftId) { const saved = await saveDraft.mutateAsync(); setDraftId(saved.id); setDirty(false); }\n      const targetId = draftId || (await messagesApi.create({ to: to.split(',').map(x => x.trim()).filter(Boolean), cc: cc.split(',').map(x => x.trim()).filter(Boolean), bcc: bcc.split(',').map(x => x.trim()).filter(Boolean), subject, body, mailbox: 'DRAFT' })).id;\n      setDraftId(targetId);\n      for (const file of Array.from(files)) { if (file.size > 20 * 1024 * 1024) throw new Error('Each attachment must be 20 MB or smaller.'); await messagesApi.uploadAttachment(targetId, file); }\n      qc.invalidateQueries({ queryKey: ['attachments', targetId] }); qc.invalidateQueries({ queryKey: ['messages'] });\n    } catch (e) { setAttachmentError((e as Error).message); } finally { setUploading(false); }\n  };
+  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };\n\n  const attachFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setAttachmentError('');
+    setUploading(true);
+    try {
+      let targetId = draftId;
+      if (!targetId) {
+        const saved = await saveDraft.mutateAsync();
+        targetId = saved.id;
+        setDraftId(targetId);
+        setDirty(false);
+      }
+      for (const file of Array.from(files)) {
+        if (file.size > 20 * 1024 * 1024) throw new Error('Each attachment must be 20 MB or smaller.');
+        await messagesApi.uploadAttachment(targetId, file);
+      }
+      qc.invalidateQueries({ queryKey: ['attachments', targetId] });
+      qc.invalidateQueries({ queryKey: ['messages'] });
+    } catch (e) {
+      setAttachmentError((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (!open) return null;
 
