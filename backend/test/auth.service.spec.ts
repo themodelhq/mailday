@@ -17,7 +17,7 @@ const mockPrisma: any = {
 
 const mockJwt: any = { sign: jest.fn(() => 'tok'), verify: jest.fn(() => ({})) };
 const mockConfig: any = { get: (k: string) => (k === 'JWT_EXPIRES_IN' ? '15m' : '7d') };
-const mockRedis: any = { invalidatePrefix: jest.fn(), client: { get: jest.fn().mockResolvedValue(null) } };
+const mockRedis: any = { invalidatePrefix: jest.fn(), client: { get: jest.fn().mockResolvedValue(null), incr: jest.fn().mockResolvedValue(1), set: jest.fn().mockResolvedValue('OK') } };
 
 describe('AuthService (security-critical logic)', () => {
   let service: AuthService;
@@ -78,5 +78,31 @@ describe('AuthService (security-critical logic)', () => {
     await expect(
       service.login({ identifier: 'a@b.com', password: 'wrong' }),
     ).rejects.toThrow();
+  });
+});
+
+
+describe('AuthService session revocation', () => {
+  let service: AuthService;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new AuthService(mockPrisma, mockJwt, mockConfig, mockRedis);
+  });
+
+  it('removes all refresh tokens and increments the session version on logout-all', async () => {
+    mockPrisma.refreshToken.deleteMany = jest.fn().mockResolvedValue({ count: 3 });
+    mockRedis.client.incr.mockResolvedValue(2);
+    await expect(service.logoutAll('u1')).resolves.toEqual({ success: true });
+    expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+    expect(mockRedis.client.incr).toHaveBeenCalledWith('auth:session-version:u1');
+  });
+
+  it('revokes the supplied access token until its expiry', async () => {
+    const exp = Math.floor(Date.now() / 1000) + 300;
+    mockJwt.verify.mockReturnValueOnce({ jti: 'refresh-jti' }).mockReturnValueOnce({ jti: 'access-jti', exp });
+    mockPrisma.refreshToken.delete = jest.fn().mockResolvedValue({});
+    await expect(service.logout('refresh-token', 'access-token')).resolves.toEqual({ success: true });
+    expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({ where: { token: 'refresh-jti' } });
+    expect(mockRedis.client.set).toHaveBeenCalledWith('auth:revoked:access-jti', '1', 'EX', expect.any(Number));
   });
 });
