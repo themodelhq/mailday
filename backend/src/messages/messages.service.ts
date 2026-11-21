@@ -178,7 +178,7 @@ export class MessagesService {
   async getDeliveryStatus(user: AuthUser, messageId: string) {
     const delivery = await this.prisma.outboundDelivery.findFirst({
       where: { messageId, ownerId: user.id },
-      select: { id: true, status: true, attempts: true, maxAttempts: true, nextAttemptAt: true, providerMessageId: true, lastError: true, createdAt: true, updatedAt: true, sentAt: true, failedAt: true },
+      select: { id: true, status: true, attempts: true, maxAttempts: true, nextAttemptAt: true, providerMessageId: true, lastError: true, createdAt: true, updatedAt: true, sentAt: true, failedAt: true, events: { orderBy: { occurredAt: 'desc' }, take: 20, select: { id: true, eventType: true, provider: true, recipient: true, detail: true, occurredAt: true } } },
     });
     if (!delivery) throw new NotFoundException('Outbound delivery not found');
     return delivery;
