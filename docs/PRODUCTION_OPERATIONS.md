@@ -70,3 +70,7 @@ Database backups alone do not back up attachment bytes. Back up the persistent d
 ## Request observability
 
 Each HTTP request receives a server-generated `X-Request-ID` response header. The API emits a JSON-formatted log entry on response completion with request ID, method, path, status code, and elapsed milliseconds. Query strings are intentionally excluded to avoid logging tokens or other sensitive query parameters. Use the request ID to correlate a client report with Render logs.
+
+## Dependency maintenance
+
+Dependabot is configured to check backend, frontend, and GitHub Actions dependencies weekly and open grouped minor/patch update pull requests. Major updates are kept separate for review. Dependency update pull requests must pass the normal CI build and tests before merging. Do not apply broad `npm audit fix --force` updates without reviewing breaking changes and the dependency tree.
