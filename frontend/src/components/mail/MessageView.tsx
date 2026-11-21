@@ -23,7 +23,9 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
     queryFn: () => messagesApi.get(id),
   });
 
-  const { data: messageAttachments = [] } = useQuery({ queryKey: ['attachments', id], queryFn: () => messagesApi.attachments(id), enabled: Boolean(data?.hasAttachments) });\n\n  const { data: threadMessages = [] } = useQuery({ queryKey: ['thread', data?.threadId], queryFn: () => messagesApi.thread(data!.threadId!), enabled: Boolean(data?.threadId), staleTime: 30_000 });
+  const { data: messageAttachments = [] } = useQuery({ queryKey: ['attachments', id], queryFn: () => messagesApi.attachments(id), enabled: Boolean(data?.hasAttachments) });
+
+  const { data: threadMessages = [] } = useQuery({ queryKey: ['thread', data?.threadId], queryFn: () => messagesApi.thread(data!.threadId!), enabled: Boolean(data?.threadId), staleTime: 30_000 });
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['message', id] });
