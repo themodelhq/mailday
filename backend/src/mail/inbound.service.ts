@@ -88,6 +88,8 @@ export class InboundService {
           receipt = await this.prisma.inboundReceipt.update({ where: { id: existing.id }, data: { status: 'RECEIVED', error: null, messageId: null } });
         } else throw e;
       }
+      let createdMessageId: string | null = null;
+      const writtenFiles: string[] = [];
       try {
         const existingMessage = await this.prisma.message.findFirst({ where: { ownerId: user.id, labels: { has: `mid:${providerMessageId}` } } });
         if (existingMessage) {
@@ -101,28 +103,32 @@ export class InboundService {
           labels: ['INBOUND', `provider:${provider}`, `mid:${providerMessageId}`],
           hasAttachments: attachments.length > 0,
         } });
-        for (const attachment of attachments) {
+        createdMessageId = message.id;
+        for (let index = 0; index < attachments.length; index++) {
+          const attachment = attachments[index];
           const storageName = randomUUID();
           const originalName = (attachment.filename || 'attachment').replace(/[\\/\\\\]/g, '_').replace(/[\\u0000-\\u001f\\u007f]/g, '_').trim().slice(0, 255) || 'attachment';
           await mkdir(this.storageDir, { recursive: true });
           await writeFile(join(this.storageDir, storageName), attachment.content, { flag: 'wx' });
-          try {
-            await this.prisma.attachment.create({ data: {
-              messageId: message.id, originalName, storageName,
-              mimeType: attachment.contentType || 'application/octet-stream',
-              size: attachment.content.length, scanStatus: scanStatuses[attachments.indexOf(attachment)],
-            } });
-          } catch (err) {
-            await unlink(join(this.storageDir, storageName)).catch(() => undefined);
-            throw err;
-          }
+          writtenFiles.push(storageName);
+          await this.prisma.attachment.create({ data: {
+            messageId: message.id, originalName, storageName,
+            mimeType: attachment.contentType || 'application/octet-stream',
+            size: attachment.content.length, scanStatus: scanStatuses[index],
+          } });
         }
         await this.prisma.inboundReceipt.update({ where: { id: receipt.id }, data: { status: 'PROCESSED', messageId: message.id, processedAt: new Date() } });
         await this.es.indexMessage(message).catch(e => this.logger.warn('Inbound search indexing failed: ' + (e as Error).message));
         await this.redis.invalidatePrefix(`messages:${user.id}:`).catch(() => undefined);
         results.push({ recipient, status: 'PROCESSED' });
       } catch (e) {
-        await this.prisma.inboundReceipt.update({ where: { id: receipt.id }, data: { status: 'FAILED', error: (e as Error).message.slice(0, 1000) } }).catch(() => undefined);
+        // Roll back partial inbound persistence so a retry cannot mistake an
+        // incomplete message for a successfully imported duplicate.
+        if (createdMessageId) {
+          await this.prisma.message.delete({ where: { id: createdMessageId } }).catch(() => undefined);
+        }
+        await Promise.all(writtenFiles.map(name => unlink(join(this.storageDir, name)).catch(() => undefined)));
+        await this.prisma.inboundReceipt.update({ where: { id: receipt.id }, data: { status: 'FAILED', error: (e as Error).message.slice(0, 1000), messageId: null } }).catch(() => undefined);
         results.push({ recipient, status: 'FAILED' });
         this.logger.error('Inbound processing failed', (e as Error).message);
       }
