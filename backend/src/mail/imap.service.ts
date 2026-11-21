@@ -214,7 +214,13 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
         for (const uid of uids) {
           const msg = await client.fetchOne(uid, { uid: true, source: true });
           if (!msg || !msg.source) continue;
-          const parsed = await simpleParser(msg.source as Buffer);
+          const source = Buffer.isBuffer(msg.source) ? msg.source : Buffer.from(msg.source as Uint8Array);
+          if (source.length > 5 * 1024 * 1024) {
+            this.logger.warn(`Skipping oversized IMAP message UID ${uid} (${source.length} bytes)`);
+            await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
+            continue;
+          }
+          const parsed = await simpleParser(source);
           await this.importMessage(account.userId, parsed);
           await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
         }
