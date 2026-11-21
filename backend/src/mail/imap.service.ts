@@ -206,7 +206,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     const password = this.crypto.decrypt(account.passwordEnc);
     const client = new ImapFlow({
       host: validatedHost.address,
-      servername: validatedHost.servername,
+      ...(validatedHost.servername ? { servername: validatedHost.servername } : {}),
       port: account.port,
       secure: account.secure,
       auth: { user: account.username, pass: password },
