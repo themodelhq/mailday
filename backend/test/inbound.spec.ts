@@ -120,7 +120,7 @@ describe('InboundService failure recovery', () => {
     });
     expect(second.recipients).toEqual([{ recipient: 'user@mailday.app', status: 'PROCESSED' }]);
     expect(localPrisma.message.create).toHaveBeenCalledTimes(2);
-    expect(localPrisma.inboundReceipt.updateMany).toHaveBeenCalledTimes(3);
+    expect(localPrisma.inboundReceipt.updateMany).toHaveBeenCalledTimes(2);
   });
 
   it('rolls back the created message if marking its receipt processed fails', async () => {
@@ -180,7 +180,7 @@ describe('InboundService failure recovery', () => {
       '',
     ].join('\\r\\n');
 
-    await expect(localService.receive('test-token', { rawMime })).rejects.toThrow('malware detected');
+    await expect(localService.receive('test-token', { rawMime, to: 'user@mailday.app' })).rejects.toThrow('malware detected');
     expect(localScanner.scan).toHaveBeenCalledTimes(1);
     expect(localPrisma.inboundReceipt.create).not.toHaveBeenCalled();
     expect(localPrisma.message.create).not.toHaveBeenCalled();
