@@ -17,7 +17,7 @@ const mockPrisma: any = {
 
 const mockJwt: any = { sign: jest.fn(() => 'tok'), verify: jest.fn(() => ({})) };
 const mockConfig: any = { get: (k: string) => (k === 'JWT_EXPIRES_IN' ? '15m' : '7d') };
-const mockRedis: any = { invalidatePrefix: jest.fn() };
+const mockRedis: any = { invalidatePrefix: jest.fn(), client: { get: jest.fn().mockResolvedValue(null) } };
 
 describe('AuthService (security-critical logic)', () => {
   let service: AuthService;
