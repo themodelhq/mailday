@@ -91,7 +91,7 @@ export class InboundService {
       let createdMessageId: string | null = null;
       const writtenFiles: string[] = [];
       try {
-        const existingMessage = await this.prisma.message.findFirst({ where: { ownerId: user.id, labels: { has: `mid:${providerMessageId}` } } });
+        const existingMessage = await this.prisma.message.findFirst({ where: { ownerId: user.id, labels: { has: `mid:${provider}:${providerMessageId}` } } });
         if (existingMessage) {
           await this.prisma.inboundReceipt.update({ where: { id: receipt.id }, data: { status: 'PROCESSED', messageId: existingMessage.id, processedAt: new Date() } });
           results.push({ recipient, status: 'DUPLICATE' });
@@ -100,7 +100,7 @@ export class InboundService {
         const message = await this.prisma.message.create({ data: {
           ownerId: user.id, from, to: [recipient], subject, body, snippet,
           mailbox: Mailbox.INBOX, state: MessageState.RECEIVED,
-          labels: ['INBOUND', `provider:${provider}`, `mid:${providerMessageId}`],
+          labels: ['INBOUND', `provider:${provider}`, `mid:${provider}:${providerMessageId}`],
           hasAttachments: attachments.length > 0,
         } });
         createdMessageId = message.id;
