@@ -50,16 +50,8 @@ export class InboundService {
     const subject = payload.subject ?? parsed?.subject ?? '';
     const html = payload.html ?? (parsed?.html ? String(parsed.html) : '');
     const text = payload.text ?? parsed?.text ?? '';
-    // Store plain text for inbound messages until a proven HTML sanitizer is integrated.
-    const body = String(text || html)
-      .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\/\s*\1\s*>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    // Convert untrusted HTML to plain text using the shared safe converter.
+    const body = htmlEmailToText(String(text || html || ''));
     const snippet = body.slice(0, 160);
     const attachments = (parsed?.attachments ?? []).filter(a => a.content?.length);
     const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.content.length, 0);
