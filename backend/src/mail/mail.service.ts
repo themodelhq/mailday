@@ -8,6 +8,18 @@ export interface SendResult {
   sent: boolean;
   messageId?: string;
   error?: string;
+  errorCode?: string;
+  retryable?: boolean;
+}
+
+export function classifySendError(error: unknown): { errorCode?: string; retryable: boolean } {
+  const err = error as { code?: string; responseCode?: number } | null;
+  const responseCode = Number(err?.responseCode);
+  const errorCode = err?.code;
+  if (Number.isFinite(responseCode) && responseCode >= 500) return { errorCode: String(responseCode), retryable: false };
+  if (Number.isFinite(responseCode) && responseCode >= 400) return { errorCode: String(responseCode), retryable: true };
+  if (errorCode && ['EAUTH', 'EENVELOPE', 'EMESSAGE'].includes(errorCode)) return { errorCode, retryable: false };
+  return { errorCode, retryable: true };
 }
 
 /**
@@ -53,7 +65,7 @@ export class MailService {
   async send(to: string[], subject: string, html: string, cc: string[] = [], bcc: string[] = [], attachments: { storageName: string; originalName: string; mimeType: string }[] = []): Promise<SendResult> {
     if (!this.transporter) {
       this.logger.debug('SMTP not configured — message stored locally (demo mode).');
-      return { sent: false, error: 'SMTP_NOT_CONFIGURED' };
+      return { sent: false, error: 'SMTP_NOT_CONFIGURED', errorCode: 'SMTP_NOT_CONFIGURED', retryable: false };
     }
     try {
       const info = await this.transporter.sendMail({
@@ -67,8 +79,9 @@ export class MailService {
       });
       return { sent: true, messageId: info.messageId };
     } catch (e) {
+      const classified = classifySendError(e);
       this.logger.error(`SMTP send failed: ${(e as Error).message}`);
-      return { sent: false, error: (e as Error).message };
+      return { sent: false, error: (e as Error).message, ...classified };
     }
   }
 }
