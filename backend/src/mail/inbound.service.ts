@@ -55,9 +55,12 @@ export class InboundService {
       try {
         receipt = await this.prisma.inboundReceipt.create({ data: { provider, providerMessageId, recipient, ownerId: user.id } });
       } catch (e) {
-        // Duplicate provider message/recipient is an idempotent acknowledgement.
-        if ((e as { code?: string }).code === 'P2002') { results.push({ recipient, status: 'DUPLICATE' }); continue; }
-        throw e;
+        // Duplicate receipt is idempotent. Failed receipts may be safely retried.
+        if ((e as { code?: string }).code === 'P2002') {
+          const existing = await this.prisma.inboundReceipt.findUnique({ where: { provider_providerMessageId_recipient: { provider, providerMessageId, recipient } } });
+          if (!existing || existing.status === 'PROCESSED') { results.push({ recipient, status: 'DUPLICATE' }); continue; }
+          receipt = await this.prisma.inboundReceipt.update({ where: { id: existing.id }, data: { status: 'RECEIVED', error: null, messageId: null } });
+        } else throw e;
       }
       try {
         const message = await this.prisma.message.create({ data: {
