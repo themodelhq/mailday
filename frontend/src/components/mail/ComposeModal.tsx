@@ -34,6 +34,7 @@ export default function ComposeModal() {
   const [aiError, setAiError] = useState('');
   const [deliveryNotice, setDeliveryNotice] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState('');
+  const [scheduledAt, setScheduledAt] = useState('');
 
   // Prefill from a compose draft (e.g. an AI-generated reply) then clear it.
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function ComposeModal() {
       const key = idempotencyKey || crypto.randomUUID();
       if (draftId) {
         if (dirty) await messagesApi.update(draftId, { to: to.split(',').map(s => s.trim()).filter(Boolean), cc: cc.split(',').map(s => s.trim()).filter(Boolean), bcc: bcc.split(',').map(s => s.trim()).filter(Boolean), subject, body });
-        return messagesApi.sendDraft(draftId, key);
+        return messagesApi.sendDraft(draftId, key, scheduledAt ? new Date(scheduledAt).toISOString() : undefined);
       }
       return messagesApi.create({
         to: to.split(',').map((s) => s.trim()).filter(Boolean),
