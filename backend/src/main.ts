@@ -6,9 +6,11 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { validateRuntimeConfiguration } from './config/runtime-validation';
 
 async function bootstrap() {
   const logger = new Logger('MailDay');
+  validateRuntimeConfiguration(process.env);
 
   // Last-resort safety net: an unhandled rejection anywhere in the app (a missed
   // .catch(), a fire-and-forget async call, etc.) crashes the whole Node process
