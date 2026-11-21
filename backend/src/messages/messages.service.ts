@@ -151,6 +151,7 @@ export class MessagesService {
     if (!(draft.to.length || draft.cc.length || draft.bcc.length)) {
       throw new BadRequestException('At least one recipient is required');
     }
+    if (scheduledAt && new Date(scheduledAt) <= new Date()) throw new BadRequestException('Scheduled send time must be in the future');
     if (!this.mail.enabled) {
       throw new ServiceUnavailableException('Outbound email is not configured. Your draft was not sent.');
     }
