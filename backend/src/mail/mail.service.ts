@@ -63,6 +63,7 @@ export class MailService {
         bcc: bcc.length ? bcc : undefined,
         subject,
         html,
+        attachments: await Promise.all(attachments.map(async (a) => ({ filename: a.originalName, content: await readFile(join(process.env.ATTACHMENTS_DIR || join(process.cwd(), 'uploads'), a.storageName)), contentType: a.mimeType }))),
       });
       return { sent: true, messageId: info.messageId };
     } catch (e) {
