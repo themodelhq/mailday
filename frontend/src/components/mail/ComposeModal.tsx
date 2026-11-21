@@ -68,7 +68,7 @@ export default function ComposeModal() {
         bcc: bcc.split(',').map((s) => s.trim()).filter(Boolean),
         threadId, inReplyTo,
         subject,
-        body,
+        body: bodyWithSignature(),
         mailbox: 'SENT' as MailboxName,
         idempotencyKey: key,
       });
