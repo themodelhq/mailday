@@ -26,8 +26,9 @@ export class AuthService {
   private async issueTokens(userId: string, email: string, username: string, role: string, db: Prisma.TransactionClient | PrismaService = this.prisma): Promise<TokenPair> {
     const jti = uuid();
     const accessJti = uuid();
+    const sessionVersion = Number(await this.redis.client.get(`auth:session-version:${userId}`) ?? 0);
     const accessToken = this.jwt.sign(
-      { sub: userId, email, username, role, jti: accessJti },
+      { sub: userId, email, username, role, jti: accessJti, sv: sessionVersion },
       { secret: this.config.get<string>('JWT_SECRET'), expiresIn: this.config.get<string>('JWT_EXPIRES_IN') ?? '15m' },
     );
     const refreshToken = this.jwt.sign(
@@ -108,6 +109,12 @@ export class AuthService {
     });
     await this.redis.invalidatePrefix(`messages:${payload.sub}:`);
     return tokens;
+  }
+
+  async logoutAll(userId: string): Promise<{ success: boolean }> {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+    await this.redis.client.incr(`auth:session-version:${userId}`);
+    return { success: true };
   }
 
   async logout(refreshToken: string, accessToken: string): Promise<{ success: boolean }> {
