@@ -276,7 +276,7 @@ export const messagesApi = {
     return fetchWithAuth<MessageListResponse>(`${api}/messages${q ? `?${q}` : ''}`);
   },
   get: (id: string) => fetchWithAuth<Message>(`${api}/messages/${id}`),
-  create: (body: { to: string[]; subject?: string; body?: string; mailbox?: MailboxName; labels?: string[]; isImportant?: boolean }) =>
+  create: (body: { to: string[]; subject?: string; body?: string; mailbox?: MailboxName; labels?: string[]; isImportant?: boolean; idempotencyKey?: string }) =>
     fetchWithAuth<Message>(`${api}/messages`, { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: Record<string, unknown>) =>
     fetchWithAuth<Message>(`${api}/messages/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
