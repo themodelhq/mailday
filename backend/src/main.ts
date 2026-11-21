@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { json, urlencoded } from 'express';
+import { randomUUID } from 'crypto';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
@@ -19,6 +20,25 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   // Let Nest close HTTP and provider resources on Render SIGTERM/SIGINT.
   app.enableShutdownHooks();
+  // Lightweight request observability: a server-generated correlation ID and
+  // method/path/status/latency logs. Query strings are intentionally omitted.
+  app.use((req, res, next) => {
+    const requestId = randomUUID();
+    const startedAt = Date.now();
+    res.setHeader('X-Request-ID', requestId);
+    res.on('finish', () => {
+      logger.log(JSON.stringify({
+        type: 'http_request',
+        requestId,
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        durationMs: Date.now() - startedAt,
+      }));
+    });
+    next();
+  });
+
   // Inbound MIME webhook accepts up to 5 MB plus JSON overhead.
   app.use(json({ limit: '6mb' }));
   app.use(urlencoded({ extended: true, limit: '6mb' }));
