@@ -36,6 +36,11 @@ export class CreateMessageDto {
   @IsOptional()
   @IsBoolean()
   isImportant?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  idempotencyKey?: string;
 }
 
 export class UpdateMessageDto {
