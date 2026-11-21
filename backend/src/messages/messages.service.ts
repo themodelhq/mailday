@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, ServiceUnavailableException, BadRequestException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Prisma, Mailbox, MessageState, Message } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -107,6 +108,7 @@ export class MessagesService {
     const mailbox = dto.mailbox ?? Mailbox.INBOX;
     const isOutbound = mailbox === Mailbox.SENT;
     const isDraft = mailbox === Mailbox.DRAFT;
+    if (isOutbound && !(dto.to?.length || dto.cc?.length || dto.bcc?.length)) throw new BadRequestException('At least one recipient is required');
 
     if (isOutbound && !this.mail.enabled) {
       throw new ServiceUnavailableException('Outbound email is not configured. Your message was not queued.');
@@ -116,7 +118,7 @@ export class MessagesService {
       const message = await tx.message.create({
         data: {
           ownerId: user.id, from: user.email, to: dto.to ?? [], cc: dto.cc ?? [], bcc: dto.bcc ?? [],
-          threadId: dto.threadId ?? undefined, inReplyTo: dto.inReplyTo ?? undefined,
+          threadId: dto.threadId ?? (isOutbound ? randomUUID() : undefined), inReplyTo: dto.inReplyTo ?? undefined,
           subject: dto.subject ?? '', body: dto.body ?? '', snippet, mailbox,
           state: isOutbound ? MessageState.QUEUED : isDraft ? MessageState.DRAFT : MessageState.RECEIVED,
           labels: dto.labels ?? [], isImportant: dto.isImportant ?? false,
