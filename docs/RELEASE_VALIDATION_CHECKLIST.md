@@ -3,7 +3,16 @@
 This is the final pre-production checklist. A green build does not substitute for a live staging smoke test with real provider configuration.
 
 ## Automated verification
-- [ ] Latest GitHub Actions backend job passes (build + Jest suite).
+- [x] Latest GitHub Actions backend job passes (build + Jest suite) (run 44958054695).
+- [x] Latest GitHub Actions frontend job passes (production build) (run 44958054695).
+- [x] Dependency audit completed for backend and frontend (run 44958013397). Reports are successful artifacts, but findings are **release blockers** until remediated or formally accepted after risk review.
+
+### Dependency audit snapshot (2026-11-21)
+- Backend: **2 critical, 16 high, 18 moderate, 3 low** (39 total).
+- Frontend: **1 critical, 9 high, 7 moderate** (17 total).
+- Critical/high direct dependency findings include backend NestJS CLI/config/platform-express, mailparser, Nodemailer; frontend Next.js, eslint-config-next, and Zod.
+- Critical/high transitive findings include Handlebars, proxy-addr, body-parser, Multer, Lodash, and PostCSS. The audit reports major-version fixes for several direct dependencies; do not apply broad major upgrades without compatibility testing.
+- **Release status: NO-GO** until critical/high dependency findings are addressed or individually risk-reviewed with documented mitigation and owner approval.
 - [ ] Latest GitHub Actions frontend job passes (Next.js production build).
 - [ ] Dependency audit reports reviewed for both backend and frontend; unresolved critical/high findings have documented disposition.
 - [ ] Deployment configuration regression tests pass.
