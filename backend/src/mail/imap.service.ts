@@ -7,6 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
+import { createHash } from 'crypto';
 import { simpleParser, ParsedMail } from 'mailparser';
 import { ImapAccount, Mailbox, MessageState } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -220,9 +221,22 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
             await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
             continue;
           }
-          const parsed = await simpleParser(source);
-          await this.importMessage(account.userId, parsed);
-          await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
+          let parsed: ParsedMail;
+          try {
+            parsed = await simpleParser(source);
+          } catch (error) {
+            this.logger.warn(`Skipping malformed IMAP message UID ${uid}: ${(error as Error).message}`);
+            await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
+            continue;
+          }
+          try {
+            await this.importMessage(account.userId, parsed, source);
+            await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
+          } catch (error) {
+            // Leave this message unseen for retry, but don't let one transient
+            // import/indexing failure block later messages in this mailbox.
+            this.logger.warn(`Import failed for IMAP UID ${uid}; will retry: ${(error as Error).message}`);
+          }
         }
       } finally {
         lock.release();
@@ -243,9 +257,11 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async importMessage(userId: string, parsed: ParsedMail) {
-    const messageId = parsed.messageId;
-    const labelMid = messageId ? `mid:${messageId}` : '';
+  private async importMessage(userId: string, parsed: ParsedMail, source: Buffer) {
+    const messageId = parsed.messageId?.trim().slice(0, 500);
+    const fallbackFingerprint = createHash('sha256').update(source).digest('hex');
+    const dedupLabel = messageId ? `mid:${messageId}` : `imap-sha256:${fallbackFingerprint}`;
+    const labelMid = dedupLabel.slice(0, 500);
     if (labelMid) {
       const dup = await this.prisma.message.count({
         where: { ownerId: userId, labels: { has: labelMid } },
