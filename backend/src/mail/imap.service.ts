@@ -16,7 +16,7 @@ import { ElasticsearchService } from '../search/elasticsearch.service';
 import { CryptoService } from '../common/crypto.service';
 import { htmlEmailToText } from '../common/html-email-to-text';
 import { AuthUser } from '../common/decorators/current-user.decorator';
-import { validateImapHost } from './imap-host-validation';
+import { resolveValidatedImapHost } from './imap-host-validation';
 
 // mailparser's from/to can be a single AddressObject or an array of them.
 function extractAddresses(field: unknown): string[] {
@@ -87,7 +87,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     const host = dto.host.trim();
     const port = dto.port ?? 993;
     const username = dto.username.trim();
-    await validateImapHost(host);
+    const validatedHost = await resolveValidatedImapHost(host);
     if (!host || !username || !dto.password || port < 1 || port > 65535) {
       throw new BadRequestException('Host, username, password and a valid port are required');
     }
