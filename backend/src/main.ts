@@ -17,19 +17,19 @@ async function bootstrap() {
   });
 
   const app = await NestFactory.create(AppModule, { bodyParser: false });
+  // Let Nest close HTTP and provider resources on Render SIGTERM/SIGINT.
+  app.enableShutdownHooks();
   // Inbound MIME webhook accepts up to 5 MB plus JSON overhead.
   app.use(json({ limit: '6mb' }));
   app.use(urlencoded({ extended: true, limit: '6mb' }));
 
   const config = app.get(ConfigService);
 
-  // FRONTEND_URL can hold one or more comma-separated origins (useful when you
-  // have a prod Netlify domain plus deploy-preview URLs). Trailing slashes are
-  // stripped so a value like "https://maildayapp.netlify.app/" still matches
-  // the browser's Origin header, which never has one.
+  // FRONTEND_URL can hold one or more comma-separated origins (useful when a
+  // prod Netlify domain plus deploy-preview URLs are configured).
   const configuredOrigins = (config.get<string>('FRONTEND_URL') ?? '')
     .split(',')
-    .map((o) => o.trim().replace(/\/+$/, ''))
+    .map((o) => o.trim().replace(/\\/+$/, ''))
     .filter(Boolean);
 
   const allowedOrigins = new Set<string>([
@@ -40,8 +40,7 @@ async function bootstrap() {
   if (allowedOrigins.size === 1) {
     logger.warn(
       'FRONTEND_URL is not set — only http://localhost:3000 will be allowed by CORS. ' +
-        'Set FRONTEND_URL in your environment (e.g. Render dashboard) to your deployed frontend origin, ' +
-        'such as https://maildayapp.netlify.app',
+        'Set FRONTEND_URL to the deployed frontend origin.',
     );
   }
 
@@ -60,18 +59,18 @@ async function bootstrap() {
       // Allow non-browser requests (curl, server-to-server, health checks) with no Origin header.
       if (!origin) return callback(null, true);
 
-      const normalized = origin.replace(/\/+$/, '');
+      const normalized = origin.replace(/\\/+$/, '');
       if (allowedOrigins.has(normalized)) return callback(null, true);
 
       logger.warn(`Blocked CORS request from origin: ${origin}`);
-      return callback(new Error(`Origin ${origin} is not allowed by CORS`), false);
+      return callback(new Error(`Origin ${origin} is not allowed by CORS), false);
     },
     credentials: true,
   });
 
   const port = config.get<number>('PORT') ?? 4000;
   await app.listen(port);
-  logger.log(`MailDay API listening on http://localhost:${port}`);
+  logger.log(`MailDay API listening on port ${port}`);
 }
 
 bootstrap();
