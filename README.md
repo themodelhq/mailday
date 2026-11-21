@@ -174,4 +174,9 @@ Phase 4 adds CC/BCC recipient fields persisted with messages and passed to Nodem
 
 ### Inbound attachment handling
 
-For inbound webhook messages containing MIME attachments, Mailday extracts the attachment content, stores it under a random UUID filename in the configured `ATTACHMENTS_DIR`, and records its original filename, MIME type, size, and message relation in PostgreSQL. Attachments are accessible through the same authenticated attachment listing/download endpoints as outbound attachments. The inbound webhook rejects attachment payloads totaling more than 5 MB. **Malware/virus scanning is not yet implemented**; operators should treat attachments as untrusted and consider scanning before production use.
+For inbound webhook messages containing MIME attachments, Mailday extracts the attachment content, stores it under a random UUID filename in the configured `ATTACHMENTS_DIR`, and records its original filename, MIME type, size, and message relation in PostgreSQL. Attachments are accessible through the same authenticated attachment listing/download endpoints as outbound attachments. The inbound webhook rejects attachment payloads totaling more than 5 MB. ClamAV scanning is supported when `CLAMAV_HOST` is configured. Infected attachments are rejected and cannot be downloaded. If ClamAV is not configured, attachments are stored with scan status `UNCHECKED`; they remain unscanned and must be treated as untrusted.
+
+
+### Attachment scanning
+
+Mailday supports ClamAV's TCP `INSTREAM` protocol. Configure `CLAMAV_HOST`, `CLAMAV_PORT` (default 3310), and `CLAMAV_TIMEOUT_MS` (default 10000) to connect to a ClamAV daemon. Uploads and inbound MIME attachments are scanned before persistence. Detected malware is rejected. When no scanner host is configured, attachments are explicitly marked `UNCHECKED`; this is not equivalent to a clean scan. Configure a private network connection to ClamAV and do not expose the daemon publicly.
