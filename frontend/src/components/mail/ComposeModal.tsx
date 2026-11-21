@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Send, Sparkles, Loader2 } from 'lucide-react';
 import { messagesApi, aiApi, AiTone, usersApi } from '@/lib/api';
 import { useAppDispatch, useAppSelector } from '@/hooks';
@@ -52,7 +52,7 @@ export default function ComposeModal() {
     }
   }, [open, draft, dispatch]);
 
-  const bodyWithSignature = () => { const sig = profile?.signature?.trim(); return sig && !body.includes(sig) ? `${body.trim()}\\n\\n${sig}` : body; };\n\n  const send = useMutation({
+  const bodyWithSignature = () => { const sig = profile?.signature?.trim(); return sig && !body.includes(sig) ? `${body.trim()}\n\n${sig}` : body; };\n\n  const send = useMutation({
     mutationFn: async () => {
       const key = idempotencyKey || crypto.randomUUID();
       if (draftId) {
