@@ -73,6 +73,7 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
   }
 
   const m = data as Message;
+  const { data: threadMessages = [] } = useQuery({ queryKey: ['thread', m.threadId], queryFn: () => messagesApi.thread(m.threadId!), enabled: Boolean(m.threadId), staleTime: 30_000 });
 
   return (
     <div className="flex h-full flex-col">
@@ -95,6 +96,8 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
             <Trash2 className="h-4 w-4" />
           </button>
           {m.mailbox === 'DRAFT' && <button className="btn-primary" title="Edit draft" onClick={() => dispatch(openComposeWith({ to: m.to.join(', '), cc: m.cc.join(', '), bcc: m.bcc.join(', '), subject: m.subject, body: m.body, draftId: m.id }))}><Pencil className="h-4 w-4" /> Edit draft</button>}
+          <button className="btn-ghost border border-slate-300 dark:border-white/10" title="Reply all" onClick={() => dispatch(openComposeWith({ to: [m.from, ...m.to].join(', '), cc: m.cc.join(', '), subject: `Re: ${m.subject}`, body: '', threadId: m.threadId ?? m.id, inReplyTo: m.id }))}><Reply className="h-4 w-4" /> Reply all</button>
+          <button className="btn-ghost border border-slate-300 dark:border-white/10" title="Forward" onClick={() => dispatch(openComposeWith({ subject: `Fwd: ${m.subject}`, body: `\n\n---------- Forwarded message ----------\nFrom: ${m.from}\nTo: ${m.to.join(', ')}\nSubject: ${m.subject}\n\n${stripHtml(m.body)}` }))}><Reply className="h-4 w-4 rotate-180" /> Forward</button>
           <button className="btn-primary" title="Reply" onClick={() => dispatch(openComposeWith({ to: m.from, subject: `Re: ${m.subject}`, body: '', threadId: m.threadId ?? m.id, inReplyTo: m.id }))}>
             <Reply className="h-4 w-4" /> Reply
           </button>
