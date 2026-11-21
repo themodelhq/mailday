@@ -66,3 +66,7 @@ Database backups alone do not back up attachment bytes. Back up the persistent d
 - Attachment storage must be recovered alongside the database.
 - Keep `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `VAULT_SECRET` backed up securely. Rotating them may invalidate sessions or make stored encrypted credentials unreadable.
 - For a failed Prisma migration, use `prisma migrate status` and inspect actual database state before resolving it as applied or rolled back. Never blindly mark a migration resolved.
+
+## Request observability
+
+Each HTTP request receives a server-generated `X-Request-ID` response header. The API emits a JSON-formatted log entry on response completion with request ID, method, path, status code, and elapsed milliseconds. Query strings are intentionally excluded to avoid logging tokens or other sensitive query parameters. Use the request ID to correlate a client report with Render logs.
