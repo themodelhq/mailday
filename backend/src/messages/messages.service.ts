@@ -106,6 +106,7 @@ export class MessagesService {
     const snippet = (dto.body ?? '').replace(/<[^>]+>/g, ' ').slice(0, 160);
     const mailbox = dto.mailbox ?? Mailbox.INBOX;
     const isOutbound = mailbox === Mailbox.SENT;
+    const isDraft = mailbox === Mailbox.DRAFT;
 
     if (isOutbound && !this.mail.enabled) {
       throw new ServiceUnavailableException('Outbound email is not configured. Your message was not queued.');
@@ -114,8 +115,10 @@ export class MessagesService {
     const created = await this.prisma.$transaction(async (tx) => {
       const message = await tx.message.create({
         data: {
-          ownerId: user.id, from: user.email, to: dto.to, subject: dto.subject ?? '',
-          body: dto.body ?? '', snippet, mailbox, state: isOutbound ? MessageState.QUEUED : MessageState.RECEIVED,
+          ownerId: user.id, from: user.email, to: dto.to ?? [], cc: dto.cc ?? [], bcc: dto.bcc ?? [],
+          threadId: dto.threadId ?? undefined, inReplyTo: dto.inReplyTo ?? undefined,
+          subject: dto.subject ?? '', body: dto.body ?? '', snippet, mailbox,
+          state: isOutbound ? MessageState.QUEUED : isDraft ? MessageState.DRAFT : MessageState.RECEIVED,
           labels: dto.labels ?? [], isImportant: dto.isImportant ?? false,
         },
       });
@@ -147,6 +150,11 @@ export class MessagesService {
     const updated = await this.prisma.message.update({
       where: { id },
       data: {
+        ...(dto.to !== undefined ? { to: dto.to } : {}),
+        ...(dto.cc !== undefined ? { cc: dto.cc } : {}),
+        ...(dto.bcc !== undefined ? { bcc: dto.bcc } : {}),
+        ...(dto.subject !== undefined ? { subject: dto.subject } : {}),
+        ...(dto.body !== undefined ? { body: dto.body, snippet: dto.body.replace(/<[^>]+>/g, ' ').slice(0, 160) } : {}),
         ...(dto.isRead !== undefined ? { isRead: dto.isRead } : {}),
         ...(dto.isStarred !== undefined ? { isStarred: dto.isStarred } : {}),
         ...(dto.mailbox !== undefined ? { mailbox: dto.mailbox } : {}),
