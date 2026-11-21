@@ -102,6 +102,28 @@ export interface MessageListResponse {
   pages: number;
 }
 
+export interface DeliveryEvent {
+  id: string;
+  eventType: string;
+  provider: string;
+  recipient: string | null;
+  detail: string | null;
+  occurredAt: string;
+}
+
+export interface DeliveryStatus {
+  id: string;
+  status: 'QUEUED' | 'PROCESSING' | 'SENT' | 'RETRYING' | 'FAILED' | 'BOUNCED';
+  attempts: number;
+  maxAttempts: number;
+  nextAttemptAt: string;
+  providerMessageId: string | null;
+  lastError: string | null;
+  sentAt: string | null;
+  failedAt: string | null;
+  events?: DeliveryEvent[];
+}
+
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(ACCESS_KEY);
@@ -284,7 +306,8 @@ export const messagesApi = {
   },
   get: (id: string) => fetchWithAuth<Message>(`${api}/messages/${id}`),
   thread: (threadId: string) => fetchWithAuth<Message[]>(`${api}/messages/thread/${threadId}`),
-  deliveryStatus: (id: string) => fetchWithAuth<{ id: string; status: string; attempts: number; maxAttempts: number; nextAttemptAt: string; providerMessageId: string | null; lastError: string | null; sentAt: string | null; failedAt: string | null }>(`${api}/messages/${id}/delivery`),
+  deliveryStatus: (id: string) => fetchWithAuth<DeliveryStatus>(`${api}/messages/${id}/delivery`),
+  retryDelivery: (id: string) => fetchWithAuth<DeliveryStatus>(`${api}/messages/${id}/delivery/retry`, { method: 'POST' }),
   sendDraft: (id: string, idempotencyKey?: string, scheduledAt?: string) => fetchWithAuth<Message>(`${api}/messages/${id}/send`, { method: 'POST', body: JSON.stringify({ idempotencyKey, scheduledAt }) }),
   create: (body: { to?: string[]; cc?: string[]; bcc?: string[]; subject?: string; body?: string; mailbox?: MailboxName; labels?: string[]; isImportant?: boolean; idempotencyKey?: string; threadId?: string; inReplyTo?: string; scheduledAt?: string }) =>
     fetchWithAuth<Message>(`${api}/messages`, { method: 'POST', body: JSON.stringify(body) }),
