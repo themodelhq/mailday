@@ -126,7 +126,7 @@ export class MessagesService {
       });
       if (isOutbound) {
         await tx.outboundDelivery.create({
-          data: { ownerId: user.id, messageId: message.id, idempotencyKey: dto.idempotencyKey ?? undefined },
+          data: { ownerId: user.id, messageId: message.id, idempotencyKey: dto.idempotencyKey ?? undefined, nextAttemptAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined },
         });
       }
       return message;
@@ -142,7 +142,7 @@ export class MessagesService {
     return this.prisma.message.findMany({ where: { ownerId: user.id, threadId }, orderBy: { sentAt: 'asc' } });
   }
 
-  async sendDraft(user: AuthUser, id: string, idempotencyKey?: string) {
+  async sendDraft(user: AuthUser, id: string, idempotencyKey?: string, scheduledAt?: string) {
     const draft = await this.getById(user, id);
     if (draft.mailbox !== Mailbox.DRAFT || draft.state !== MessageState.DRAFT) {
       throw new BadRequestException('Only saved drafts can be sent');
@@ -159,7 +159,7 @@ export class MessagesService {
         data: { mailbox: Mailbox.SENT, state: MessageState.QUEUED },
       });
       await tx.outboundDelivery.create({
-        data: { ownerId: user.id, messageId: draft.id, idempotencyKey: idempotencyKey ?? undefined },
+        data: { ownerId: user.id, messageId: draft.id, idempotencyKey: idempotencyKey ?? undefined, nextAttemptAt: scheduledAt ? new Date(scheduledAt) : undefined },
       });
       return updated;
     });
