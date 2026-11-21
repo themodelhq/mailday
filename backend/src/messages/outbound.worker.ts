@@ -46,10 +46,10 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
     const token = await this.redis.acquireLock(lockKey, 180);
     if (!token) return;
     try {
-      const delivery = await this.prisma.outboundDelivery.findUnique({ where: { id }, include: { message: true } });
+      const delivery = await this.prisma.outboundDelivery.findUnique({ where: { id }, include: { message: { include: { attachments: true } } } });
       if (!delivery || !['QUEUED', 'RETRYING'].includes(delivery.status) || delivery.nextAttemptAt > new Date()) return;
       await this.prisma.outboundDelivery.update({ where: { id }, data: { status: 'PROCESSING', lockedAt: new Date(), attempts: { increment: 1 } } });
-      const result = await this.mail.send(delivery.message.to, delivery.message.subject, delivery.message.body, delivery.message.cc, delivery.message.bcc);
+      const result = await this.mail.send(delivery.message.to, delivery.message.subject, delivery.message.body, delivery.message.cc, delivery.message.bcc, delivery.message.attachments);
       if (result.sent) {
         await this.prisma.$transaction([
           this.prisma.outboundDelivery.update({ where: { id }, data: { status: 'SENT', providerMessageId: result.messageId ?? null, lastError: null, sentAt: new Date(), lockedAt: null } }),
