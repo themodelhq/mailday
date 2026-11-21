@@ -8,6 +8,29 @@ updates:
       time: "08:00"
       timezone: Africa/Lagos
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "@nestjs/common"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/testing"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/config"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/jwt"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/passport"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/platform-express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/cli"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/schematics"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
     groups:
       backend-minor-patch:
         update-types:
