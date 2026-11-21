@@ -6,19 +6,30 @@ export function isPublicAddress(address: string): boolean {
   const version = isIP(address);
   if (version === 4) {
     const octets = address.split('.').map(Number);
-    const [a, b] = octets;
+    const [a, b, c] = octets;
+    // Conservative denylist of non-global, special-purpose and reserved ranges.
     return !(a === 0 || a === 10 || a === 127 || a >= 224 ||
       (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && (b === 0 || b === 2 || (b === 88 && octets[2] === 99))) ||
-      (a === 192 && b === 168) ||
-      (a === 198 && (b === 18 || b === 19 || (b === 51 && octets[2] === 100))) ||
-      (a === 203 && b === 0 && octets[2] === 113) ||
+      (a === 192 && (b === 0 || b === 168 || (b === 2) || (b === 88 && c === 99)) ||
+      (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100)) ||
+      (a === 203 && b === 0 && c === 113) ||
       (a === 100 && b >= 64 && b <= 127));
   }
   if (version === 6) {
     const normalized = address.toLowerCase();
-    // Only global-unicast IPv6 is permitted (2000::/3).
-    return normalized.startsWith('2') || normalized.startsWith('3');
+    // Permit global-unicast only (2000::/3), while excluding known special,
+    // documentation, transition, and reserved ranges. DNS results are checked
+    // individually, so a mixed public/private answer is rejected.
+    const inGlobalUnicast = normalized.startsWith('2') || normalized.startsWith('3');
+    const excludedPrefixes = [
+      '2001:db8', // documentation
+      '2001:0:',  // Teredo
+      '2001:10:', // ORCHID
+      '2001:20:', // ORCHIDv2
+      '2002:',    // 6to4
+      '3fff:',    // documentation
+    ];
+    return inGlobalUnicast && !excludedPrefixes.some((prefix) => normalized.startsWith(prefix));
   }
   return false;
 }
