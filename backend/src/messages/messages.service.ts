@@ -131,9 +131,10 @@ export class MessagesService {
         },
       });
       if (isOutbound) {
-        await tx.outboundDelivery.create({
+        const delivery = await tx.outboundDelivery.create({
           data: { ownerId: user.id, messageId: message.id, idempotencyKey: dto.idempotencyKey ?? undefined, nextAttemptAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined },
         });
+        await tx.outboundDeliveryEvent.create({ data: { deliveryId: delivery.id, eventType: 'QUEUED', provider: delivery.provider, detail: dto.scheduledAt ? `Scheduled for ${new Date(dto.scheduledAt).toISOString()}` : 'Message queued for delivery' } });
       }
       return message;
     });
@@ -165,9 +166,10 @@ export class MessagesService {
         where: { id: draft.id },
         data: { mailbox: Mailbox.SENT, state: MessageState.QUEUED },
       });
-      await tx.outboundDelivery.create({
+      const delivery = await tx.outboundDelivery.create({
         data: { ownerId: user.id, messageId: draft.id, idempotencyKey: idempotencyKey ?? undefined, nextAttemptAt: scheduledAt ? new Date(scheduledAt) : undefined },
       });
+      await tx.outboundDeliveryEvent.create({ data: { deliveryId: delivery.id, eventType: 'QUEUED', provider: delivery.provider, detail: scheduledAt ? `Draft scheduled for ${new Date(scheduledAt).toISOString()}` : 'Draft queued for delivery' } });
       return updated;
     });
     await this.es.updateMessage(result);
@@ -197,6 +199,7 @@ export class MessagesService {
       });
       if (claim.count !== 1) throw new BadRequestException('Delivery is no longer eligible for retry');
       await tx.message.update({ where: { id: messageId }, data: { state: MessageState.QUEUED } });
+      await tx.outboundDeliveryEvent.create({ data: { deliveryId: delivery.id, eventType: 'QUEUED', provider: delivery.provider, detail: 'Manual retry requested; attempts reset' } });
       return tx.outboundDelivery.findUnique({ where: { id: delivery.id } });
     });
 
