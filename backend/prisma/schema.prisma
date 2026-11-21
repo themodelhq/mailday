@@ -66,6 +66,10 @@ model Message {
   state       MessageState  @default(RECEIVED)
   from        String
   to          String[]
+  cc          String[]      @default([])
+  bcc         String[]      @default([])
+  threadId    String?
+  inReplyTo   String?
   subject     String        @default("")
   body        String        @default("")
   snippet     String        @default("")
@@ -80,6 +84,7 @@ model Message {
 
   @@index([ownerId, mailbox, sentAt])
   @@index([ownerId, isRead])
+  @@index([ownerId, threadId])
   outboundDelivery OutboundDelivery?
 }
 
