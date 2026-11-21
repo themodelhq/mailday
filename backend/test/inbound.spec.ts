@@ -13,6 +13,25 @@ describe('InboundService request validation', () => {
     service = new InboundService(config, prisma, redis, es, scanner);
   });
 
+  it('does not re-import an already processed receipt', async () => {
+    const localPrisma: any = {
+      user: { findFirst: jest.fn(async () => ({ id: 'user-1' })) },
+      inboundReceipt: {
+        create: jest.fn(async () => { throw { code: 'P2002' }; }),
+        findUnique: jest.fn(async () => ({ id: 'receipt-processed', status: 'PROCESSED', receivedAt: new Date() })),
+        updateMany: jest.fn(),
+      },
+      message: { create: jest.fn(), findFirst: jest.fn() },
+    };
+    const localService = new InboundService(config, localPrisma, redis, es, scanner);
+    const result = await localService.receive('test-token', {
+      provider: 'test-provider', messageId: 'processed-id', to: 'user@mailday.app', text: 'hello',
+    });
+    expect(result.recipients).toEqual([{ recipient: 'user@mailday.app', status: 'DUPLICATE' }]);
+    expect(localPrisma.inboundReceipt.updateMany).not.toHaveBeenCalled();
+    expect(localPrisma.message.create).not.toHaveBeenCalled();
+  });
+
   it('does not process a duplicate while another request owns the receipt', async () => {
     const recent = new Date();
     const localPrisma: any = {
