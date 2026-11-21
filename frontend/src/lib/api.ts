@@ -29,6 +29,15 @@ export interface AdminStats {
   byMailbox: Record<string, number>;
 }
 
+export interface AdminDeliveryStats {
+  generatedAt: string;
+  smtp: { configured: boolean; verified: boolean };
+  totals: Record<string, number>;
+  queue: { queued: number; retrying: number; processing: number; oldestQueuedAt: string | null };
+  last24Hours: { sent: number; failed: number; bounced: number };
+  recentFailures: { id: string; messageId: string; status: string; attempts: number; lastError: string | null; failedAt: string | null; provider: string }[];
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -237,6 +246,7 @@ export const usersApi = {
 
 export const adminApi = {
   stats: () => fetchWithAuth<AdminStats>(`${api}/admin/stats`),
+  deliveryStats: () => fetchWithAuth<AdminDeliveryStats>(`${api}/admin/delivery`),
   users: (params: { page?: number; limit?: number; search?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.page) qs.set('page', String(params.page));
