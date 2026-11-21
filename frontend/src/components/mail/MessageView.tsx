@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Star, Archive, Trash2, Reply, Loader2, Sparkles, FileText, Copy, X, Pencil, RefreshCw, CheckCircle2, AlertTriangle, Clock, Send } from 'lucide-react';
 import { messagesApi, Message, aiApi, AiMode, AttachmentInfo, DeliveryStatus } from '@/lib/api';
@@ -251,7 +252,7 @@ function DeliveryPanel({ delivery, onRetry, retrying, retryError }: {
     FAILED: 'text-red-600 bg-red-500/10',
     BOUNCED: 'text-red-600 bg-red-500/10',
   };
-  const statusIcons: Record<string, React.ReactNode> = {
+  const statusIcons: Record<string, ReactNode> = {
     SENT: <CheckCircle2 className="h-4 w-4" />,
     QUEUED: <Clock className="h-4 w-4" />,
     PROCESSING: <Send className="h-4 w-4" />,
