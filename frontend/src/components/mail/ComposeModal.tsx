@@ -25,6 +25,8 @@ export default function ComposeModal() {
   const [body, setBody] = useState('');
   const [tone, setTone] = useState<AiTone>('professional');
   const [aiError, setAiError] = useState('');
+  const [deliveryNotice, setDeliveryNotice] = useState('');
+  const [idempotencyKey, setIdempotencyKey] = useState('');
 
   // Prefill from a compose draft (e.g. an AI-generated reply) then clear it.
   useEffect(() => {
@@ -43,8 +45,11 @@ export default function ComposeModal() {
         subject,
         body,
         mailbox: 'SENT' as MailboxName,
+        idempotencyKey: idempotencyKey || crypto.randomUUID(),
       }),
-    onSuccess: () => {
+    onSuccess: (message) => {
+      setDeliveryNotice('Your message has been queued for delivery.');
+      setIdempotencyKey('');
       qc.invalidateQueries({ queryKey: ['messages'] });
       setTo('');
       setSubject('');
@@ -124,9 +129,10 @@ export default function ComposeModal() {
               </select>
             </div>
             <button className="btn-primary" onClick={() => send.mutate()} disabled={send.isPending || !to}>
-              <Send className="h-4 w-4" /> {send.isPending ? 'Sending…' : 'Send'}
+              <Send className="h-4 w-4" /> {send.isPending ? 'Queuing…' : 'Queue send'}
             </button>
           </div>
+          {deliveryNotice && <p className="text-sm text-emerald-600">{deliveryNotice}</p>}
           {aiError && <p className="text-sm text-amber-500">AI unavailable: {aiError}</p>}
           {send.isError && <p className="text-sm text-red-500">{(send.error as Error).message}</p>}
         </div>
