@@ -25,6 +25,11 @@ export class AdminController {
     return this.admin.stats();
   }
 
+  @Get('delivery')
+  deliveryStats() {
+    return this.admin.deliveryStats();
+  }
+
   @Get('users')
   users(@Query() q: PaginationDto) {
     return this.admin.listUsers(q.page, q.limit, q.search);
