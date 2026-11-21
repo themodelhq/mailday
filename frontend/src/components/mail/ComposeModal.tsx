@@ -19,7 +19,8 @@ export default function ComposeModal() {
   const open = useAppSelector((s) => s.ui.composeOpen);
   const draft = useAppSelector((s) => s.ui.composeDraft);
   const dispatch = useAppDispatch();
-  const qc = useQueryClient();\n  const { data: profile } = useQuery({ queryKey: ['me'], queryFn: usersApi.me });
+  const qc = useQueryClient();
+  const { data: profile } = useQuery({ queryKey: ['me'], queryFn: usersApi.me });
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [cc, setCc] = useState('');
@@ -52,7 +53,9 @@ export default function ComposeModal() {
     }
   }, [open, draft, dispatch]);
 
-  const bodyWithSignature = () => { const sig = profile?.signature?.trim(); return sig && !body.includes(sig) ? `${body.trim()}\n\n${sig}` : body; };\n\n  const send = useMutation({
+  const bodyWithSignature = () => { const sig = profile?.signature?.trim(); return sig && !body.includes(sig) ? `${body.trim()}\n\n${sig}` : body; };
+
+  const send = useMutation({
     mutationFn: async () => {
       const key = idempotencyKey || crypto.randomUUID();
       if (draftId) {
