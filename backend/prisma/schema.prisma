@@ -94,7 +94,7 @@ model ImapAccount {
   id          String   @id @default(uuid())
   userId      String
   host        String
-  port        Int      @default(993)
+  port         Int      @default(993)
   username    String
   passwordEnc String
   secure      Boolean  @default(true)
@@ -105,13 +105,13 @@ model ImapAccount {
   @@index([userId])
 }
 
-
 enum OutboundStatus {
   QUEUED
   PROCESSING
   SENT
   RETRYING
   FAILED
+  BOUNCED
 }
 
 model OutboundDelivery {
@@ -133,11 +133,27 @@ model OutboundDelivery {
   updatedAt       DateTime         @updatedAt
   sentAt          DateTime?
   failedAt        DateTime?
+  events          OutboundDeliveryEvent[]
 
   @@index([status, nextAttemptAt])
   @@index([ownerId, createdAt])
 }
 
+model OutboundDeliveryEvent {
+  id              String           @id @default(uuid())
+  deliveryId      String
+  delivery        OutboundDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  eventType       String
+  provider        String
+  providerEventId String?
+  recipient       String?
+  detail          String?
+  occurredAt      DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+
+  @@unique([provider, providerEventId])
+  @@index([deliveryId, occurredAt])
+}
 
 model InboundReceipt {
   id String @id @default(uuid())
@@ -155,7 +171,6 @@ model InboundReceipt {
   @@index([ownerId, receivedAt])
   @@index([status, receivedAt])
 }
-
 
 model Attachment {
   id          String   @id @default(uuid())
