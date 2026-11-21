@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { json, urlencoded } from 'express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
@@ -15,7 +16,10 @@ async function bootstrap() {
     logger.error('Unhandled promise rejection', reason instanceof Error ? reason.stack : String(reason));
   });
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  // Inbound MIME webhook accepts up to 5 MB plus JSON overhead.
+  app.use(json({ limit: '6mb' }));
+  app.use(urlencoded({ extended: true, limit: '6mb' }));
 
   const config = app.get(ConfigService);
 
