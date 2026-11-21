@@ -142,6 +142,32 @@ export class MessagesService {
     return this.prisma.message.findMany({ where: { ownerId: user.id, threadId }, orderBy: { sentAt: 'asc' } });
   }
 
+  async sendDraft(user: AuthUser, id: string, idempotencyKey?: string) {
+    const draft = await this.getById(user, id);
+    if (draft.mailbox !== Mailbox.DRAFT || draft.state !== MessageState.DRAFT) {
+      throw new BadRequestException('Only saved drafts can be sent');
+    }
+    if (!(draft.to.length || draft.cc.length || draft.bcc.length)) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+    if (!this.mail.enabled) {
+      throw new ServiceUnavailableException('Outbound email is not configured. Your draft was not sent.');
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.message.update({
+        where: { id: draft.id },
+        data: { mailbox: Mailbox.SENT, state: MessageState.QUEUED },
+      });
+      await tx.outboundDelivery.create({
+        data: { ownerId: user.id, messageId: draft.id, idempotencyKey: idempotencyKey ?? undefined },
+      });
+      return updated;
+    });
+    await this.es.updateMessage(result);
+    await this.redis.invalidatePrefix(this.cachePrefix(user.id));
+    return result;
+  }
+
   async getDeliveryStatus(user: AuthUser, messageId: string) {
     const delivery = await this.prisma.outboundDelivery.findFirst({
       where: { messageId, ownerId: user.id },
