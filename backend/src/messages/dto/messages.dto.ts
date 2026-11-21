@@ -6,6 +6,7 @@ import {
   IsString,
   IsBoolean,
   MaxLength,
+  IsDateString,
 } from 'class-validator';
 import { Mailbox } from '@prisma/client';
 import { Transform } from 'class-transformer';
@@ -60,6 +61,10 @@ export class CreateMessageDto {
   @IsString()
   @MaxLength(128)
   idempotencyKey?: string;
+
+  @IsOptional()
+  @IsDateString()
+  scheduledAt?: string;
 }
 
 export class UpdateMessageDto {
