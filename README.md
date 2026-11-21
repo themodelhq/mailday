@@ -163,3 +163,8 @@ curl -X POST https://YOUR-MAILDAY-API/api/mail/inbound/webhook \\
 ```
 
 **Current limitations:** this is a provider-neutral webhook receiver, not an MX server. DNS/MX records and an inbound email provider must be configured externally. Native Mailday addresses and domain routing are not yet provisioned. Attachments are detected and flagged but their binary data is not yet persisted. HTML email sanitization and attachment storage/virus scanning are still part of later phases.
+
+
+## Phase 4 — mailbox lifecycle foundation
+
+Phase 4 adds CC/BCC recipient fields persisted with messages and passed to Nodemailer, explicit draft creation from the composer, message thread identifiers and reply metadata, authenticated thread retrieval (`GET /api/messages/thread/:threadId`), and direct reply compose. New outbound messages receive a thread identifier; replies carry `threadId` and `inReplyTo`. This is an initial lifecycle foundation: editing an existing draft, autosave, reply-all/forward, scheduled sending, signatures, and complete thread rendering remain follow-up work.
