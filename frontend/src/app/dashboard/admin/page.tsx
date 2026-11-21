@@ -10,6 +10,10 @@ import {
   Loader2,
   Search,
   AlertTriangle,
+  Activity,
+  CheckCircle2,
+  Clock3,
+  RefreshCw,
 } from 'lucide-react';
 import { adminApi, AdminUser } from '@/lib/api';
 import { useAppSelector } from '@/hooks';
@@ -31,6 +35,7 @@ export default function AdminPage() {
   const page = 1;
 
   const stats = useQuery({ queryKey: ['admin', 'stats'], queryFn: adminApi.stats });
+  const delivery = useQuery({ queryKey: ['admin', 'delivery'], queryFn: adminApi.deliveryStats, refetchInterval: 30000 });
   const users = useQuery({
     queryKey: ['admin', 'users', page, search],
     queryFn: () => adminApi.users({ page, limit: 20, search }),
@@ -88,6 +93,49 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+
+        {/* Delivery operations */}
+        <section className="card mt-6 p-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <Activity className="h-4 w-4 text-brand-500" />
+            <h2 className="font-semibold">Outbound delivery health</h2>
+            <button className="btn-ghost ml-auto text-xs" onClick={() => delivery.refetch()} disabled={delivery.isFetching}>
+              <RefreshCw className={`h-3.5 w-3.5 ${delivery.isFetching ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+            {delivery.data && <span className="text-xs text-slate-400">Updated {timeAgo(delivery.data.generatedAt)} ago</span>}
+          </div>
+          {delivery.isLoading ? <Loader2 className="mx-auto my-5 h-5 w-5 animate-spin text-slate-400" /> : delivery.error ? <p className="mt-3 text-sm text-red-500">Delivery monitoring failed to load.</p> : delivery.data && <>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${delivery.data.smtp.configured && delivery.data.smtp.verified ? 'bg-green-500/10 text-green-600' : 'bg-amber-500/10 text-amber-600'}`}>
+                {delivery.data.smtp.configured ? (delivery.data.smtp.verified ? 'SMTP healthy' : 'SMTP configured · verification failed') : 'SMTP not configured'}
+              </span>
+              <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-600">Queued: {delivery.data.queue.queued}</span>
+              <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600">Retrying: {delivery.data.queue.retrying}</span>
+              <span className="rounded-full bg-slate-500/10 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">Processing: {delivery.data.queue.processing}</span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Sent · 24h" value={delivery.data.last24Hours.sent} />
+              <StatCard label="Failed · 24h" value={delivery.data.last24Hours.failed} />
+              <StatCard label="Bounced · 24h" value={delivery.data.last24Hours.bounced} />
+              <StatCard label="All-time bounced" value={delivery.data.totals.BOUNCED ?? 0} />
+            </div>
+            {delivery.data.queue.oldestQueuedAt && <p className="mt-3 flex items-center gap-1 text-xs text-slate-500"><Clock3 className="h-3.5 w-3.5" /> Oldest queued: {timeAgo(delivery.data.queue.oldestQueuedAt)} ago</p>}
+            <div className="mt-5">
+              <h3 className="mb-2 text-sm font-medium">Recent failures and bounces</h3>
+              {delivery.data.recentFailures.length === 0 ? <p className="text-sm text-slate-500">No recent delivery failures.</p> : <div className="space-y-2">
+                {delivery.data.recentFailures.map((item) => <div key={item.id} className="rounded-lg border border-slate-200/70 p-3 dark:border-white/10">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${item.status === 'BOUNCED' ? 'bg-red-500/10 text-red-600' : 'bg-amber-500/10 text-amber-600'}`}>{item.status}</span>
+                    <span className="text-xs text-slate-500">{item.provider} · attempt {item.attempts}</span>
+                    <span className="ml-auto text-xs text-slate-400">{item.failedAt ? timeAgo(item.failedAt) + ' ago' : ''}</span>
+                  </div>
+                  <p className="mt-1 break-all text-xs text-slate-500">{item.messageId}</p>
+                  {item.lastError && <p className="mt-1 text-sm">{item.lastError}</p>}
+                </div>)}
+              </div>}
+            </div>
+          </>}
+        </section>
 
         {/* Users */}
         <div className="card mt-8 p-5">
