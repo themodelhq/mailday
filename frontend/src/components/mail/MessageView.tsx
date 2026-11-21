@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Star, Archive, Trash2, Reply, Loader2, Sparkles, FileText, Copy, X, Pencil } from 'lucide-react';
-import { messagesApi, Message, aiApi, AiMode, AttachmentInfo } from '@/lib/api';
+import { Star, Archive, Trash2, Reply, Loader2, Sparkles, FileText, Copy, X, Pencil, RefreshCw, CheckCircle2, AlertTriangle, Clock, Send } from 'lucide-react';
+import { messagesApi, Message, aiApi, AiMode, AttachmentInfo, DeliveryStatus } from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
 import { useAppDispatch } from '@/hooks';
 import { openComposeWith } from '@/features/ui/uiSlice';
@@ -36,6 +36,24 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
   const { data, isLoading } = useQuery({
     queryKey: ['message', id],
     queryFn: () => messagesApi.get(id),
+  });
+
+  const deliveryQuery = useQuery({
+    queryKey: ['delivery', id],
+    queryFn: () => messagesApi.deliveryStatus(id),
+    enabled: data?.mailbox === 'SENT',
+    refetchInterval: (query) => {
+      const status = (query.state.data as DeliveryStatus | undefined)?.status;
+      return ['QUEUED', 'PROCESSING', 'RETRYING'].includes(status ?? '') ? 5000 : false;
+    },
+  });
+
+  const retryDelivery = useMutation({
+    mutationFn: () => messagesApi.retryDelivery(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['delivery', id] });
+      invalidate();
+    },
   });
 
   const { data: messageAttachments = [] } = useQuery({ queryKey: ['attachments', id], queryFn: () => messagesApi.attachments(id), enabled: Boolean(data?.hasAttachments) });
@@ -150,6 +168,8 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
         {aiError && <span className="text-xs text-amber-500">AI unavailable: {aiError}</span>}
       </div>
 
+      {m.mailbox === 'SENT' && deliveryQuery.data && <DeliveryPanel delivery={deliveryQuery.data} onRetry={() => retryDelivery.mutate()} retrying={retryDelivery.isPending} retryError={retryDelivery.error as Error | null} />}
+
       <div className="flex-1 overflow-y-auto p-5">
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">
           {stripHtml(m.body)}
@@ -214,5 +234,58 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
         </div>
       )}
     </div>
+  );
+}
+
+function DeliveryPanel({ delivery, onRetry, retrying, retryError }: {
+  delivery: DeliveryStatus;
+  onRetry: () => void;
+  retrying: boolean;
+  retryError: Error | null;
+}) {
+  const statusStyles: Record<string, string> = {
+    SENT: 'text-emerald-600 bg-emerald-500/10',
+    QUEUED: 'text-blue-600 bg-blue-500/10',
+    PROCESSING: 'text-blue-600 bg-blue-500/10',
+    RETRYING: 'text-amber-600 bg-amber-500/10',
+    FAILED: 'text-red-600 bg-red-500/10',
+    BOUNCED: 'text-red-600 bg-red-500/10',
+  };
+  const statusIcons: Record<string, React.ReactNode> = {
+    SENT: <CheckCircle2 className="h-4 w-4" />,
+    QUEUED: <Clock className="h-4 w-4" />,
+    PROCESSING: <Send className="h-4 w-4" />,
+    RETRYING: <RefreshCw className="h-4 w-4 animate-spin" />,
+    FAILED: <AlertTriangle className="h-4 w-4" />,
+    BOUNCED: <AlertTriangle className="h-4 w-4" />,
+  };
+  return (
+    <section className="border-b border-slate-200/70 bg-slate-50/70 px-5 py-3 dark:border-white/10 dark:bg-white/[0.02]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles[delivery.status] ?? 'text-slate-500 bg-slate-500/10'}`}>
+            {statusIcons[delivery.status]} {delivery.status}
+          </span>
+          <span className="text-xs text-slate-500">Attempts: {delivery.attempts}/{delivery.maxAttempts}</span>
+          {delivery.sentAt && <span className="text-xs text-slate-500">Accepted {timeAgo(delivery.sentAt)} ago</span>}
+        </div>
+        {delivery.status === 'FAILED' && <button className="btn-ghost border border-slate-300 text-xs dark:border-white/10" onClick={onRetry} disabled={retrying}>
+          {retrying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Retry delivery
+        </button>}
+      </div>
+      {delivery.lastError && <p className="mt-2 text-xs text-red-500">{delivery.lastError}</p>}
+      {retryError && <p className="mt-2 text-xs text-red-500">Retry failed: {retryError.message}</p>}
+      {delivery.events?.length ? <div className="mt-3 border-t border-slate-200/70 pt-2 dark:border-white/10">
+        <p className="mb-1 text-xs font-medium text-slate-500">Delivery events</p>
+        <ul className="space-y-1.5">
+          {delivery.events.slice(0, 5).map((event) => <li key={event.id} className="flex flex-wrap gap-x-2 text-xs text-slate-500">
+            <span>{new Date(event.occurredAt).toLocaleString()}</span>
+            <span className="font-medium text-slate-700 dark:text-slate-300">{event.eventType}</span>
+            {event.recipient && <span>{event.recipient}</span>}
+            {event.detail && <span>{event.detail}</span>}
+          </li>)}
+        </ul>
+      </div> : null}
+    </section>
   );
 }
