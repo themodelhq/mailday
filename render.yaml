@@ -71,6 +71,8 @@ services:
         sync: false
       - key: INBOUND_WEBHOOK_TOKEN
         generateValue: true
+      - key: DELIVERY_BOUNCE_WEBHOOK_TOKEN
+        generateValue: true
       - key: ATTACHMENTS_DIR
         value: /var/data/mailday-attachments
       - key: CLAMAV_HOST
