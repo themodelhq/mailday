@@ -94,7 +94,8 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
 
     // Verify credentials and connection before storing the account.
     const probe = new ImapFlow({
-      host,
+      host: validatedHost.address,
+      servername: validatedHost.servername,
       port,
       secure: dto.secure ?? true,
       auth: { user: username, pass: dto.password },
@@ -204,7 +205,8 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     const validatedHost = await resolveValidatedImapHost(account.host);
     const password = this.crypto.decrypt(account.passwordEnc);
     const client = new ImapFlow({
-      host: account.host,
+      host: validatedHost.address,
+      servername: validatedHost.servername,
       port: account.port,
       secure: account.secure,
       auth: { user: account.username, pass: password },
