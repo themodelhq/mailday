@@ -37,7 +37,13 @@ export class InboundService {
 
   async receive(token: string | undefined, payload: { provider?: string; messageId?: string; rawMime?: string; from?: string; to?: string | string[]; subject?: string; text?: string; html?: string }) {
     this.checkToken(token);
-    if (!payload || (!payload.rawMime && !payload.to)) throw new BadRequestException('Provide rawMime or recipient information');
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new BadRequestException('Invalid inbound payload');
+    for (const key of ['provider', 'messageId', 'rawMime', 'from', 'subject', 'text', 'html'] as const) {
+      if (payload[key] !== undefined && typeof payload[key] !== 'string') throw new BadRequestException(`${key} must be a string`);
+    }
+    if (payload.to !== undefined && typeof payload.to !== 'string' && !Array.isArray(payload.to)) throw new BadRequestException('to must be a string or array');
+    if (Array.isArray(payload.to) && payload.to.some(value => typeof value !== 'string')) throw new BadRequestException('to array must contain only strings');
+    if (!payload.rawMime && !payload.to) throw new BadRequestException('Provide rawMime or recipient information');
 
     if (payload.rawMime && Buffer.byteLength(payload.rawMime, 'utf8') > 5 * 1024 * 1024) throw new BadRequestException('Inbound MIME payload exceeds 5 MB limit');
     const parsed = payload.rawMime ? await simpleParser(Buffer.from(payload.rawMime)) : null;
