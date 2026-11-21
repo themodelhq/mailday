@@ -17,6 +17,9 @@ export class InboundService {
   private readonly token: string;
   private readonly storageDir = process.env.ATTACHMENTS_DIR || join(process.cwd(), 'uploads');
   private readonly maxAttachmentBytes = 5 * 1024 * 1024;
+  private readonly maxBodyBytes = 1024 * 1024;
+  private readonly maxAddressBytes = 320;
+  private readonly maxSubjectBytes = 998;
 
   constructor(
     config: ConfigService,
@@ -43,6 +46,14 @@ export class InboundService {
     }
     if (payload.to !== undefined && typeof payload.to !== 'string' && !Array.isArray(payload.to)) throw new BadRequestException('to must be a string or array');
     if (Array.isArray(payload.to) && payload.to.some(value => typeof value !== 'string')) throw new BadRequestException('to array must contain only strings');
+    if (payload.text !== undefined && Buffer.byteLength(payload.text, 'utf8') > this.maxBodyBytes) throw new BadRequestException('Inbound text body exceeds 1 MB limit');
+    if (payload.html !== undefined && Buffer.byteLength(payload.html, 'utf8') > this.maxBodyBytes) throw new BadRequestException('Inbound HTML body exceeds 1 MB limit');
+    if (payload.subject !== undefined && Buffer.byteLength(payload.subject, 'utf8') > this.maxSubjectBytes) throw new BadRequestException('Inbound subject exceeds 998 bytes');
+    if (payload.from !== undefined && Buffer.byteLength(payload.from, 'utf8') > this.maxAddressBytes) throw new BadRequestException('Inbound sender address exceeds 320 bytes');
+    if (payload.messageId !== undefined && Buffer.byteLength(payload.messageId, 'utf8') > 255) throw new BadRequestException('Inbound messageId exceeds 255 bytes');
+    if (payload.provider !== undefined && Buffer.byteLength(payload.provider, 'utf8') > 256) throw new BadRequestException('Inbound provider value is too long');
+    if (typeof payload.to === 'string' && Buffer.byteLength(payload.to, 'utf8') > 16 * 1024) throw new BadRequestException('Inbound recipient list is too long');
+    if (Array.isArray(payload.to) && payload.to.some(value => Buffer.byteLength(value, 'utf8') > this.maxAddressBytes)) throw new BadRequestException('Inbound recipient address exceeds 320 bytes');
     if (!payload.rawMime && !payload.to) throw new BadRequestException('Provide rawMime or recipient information');
 
     if (payload.rawMime && Buffer.byteLength(payload.rawMime, 'utf8') > 5 * 1024 * 1024) throw new BadRequestException('Inbound MIME payload exceeds 5 MB limit');
@@ -57,6 +68,7 @@ export class InboundService {
     const recipients = this.normalizeAddresses(payload.to ?? parsed?.to);
     if (!recipients.length) throw new BadRequestException('No recipient address found');
     if (recipients.length > 50) throw new BadRequestException('Inbound message exceeds the 50-recipient limit');
+    if (recipients.some(address => Buffer.byteLength(address, 'utf8') > this.maxAddressBytes || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address))) throw new BadRequestException('Inbound recipient address is invalid');
     const provider = (payload.provider ?? 'webhook').trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 64) || 'webhook';
     const providerMessageId = (payload.messageId ?? parsed?.messageId ?? createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex')).trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 255) || createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex').slice(0, 64);
 
