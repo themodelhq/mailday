@@ -162,7 +162,7 @@ curl -X POST https://YOUR-MAILDAY-API/api/mail/inbound/webhook \\
   -d '{"provider":"provider-name","messageId":"provider-id-123","from":"sender@example.com","to":"user@example.com","subject":"Hello","text":"Message body"}'
 ```
 
-**Current limitations:** this is a provider-neutral webhook receiver, not an MX server. DNS/MX records and an inbound email provider must be configured externally. Native Mailday addresses and domain routing are not yet provisioned. Attachments are detected and flagged but their binary data is not yet persisted. HTML email sanitization and attachment storage/virus scanning are still part of later phases.
+**Current limitations:** this is a provider-neutral webhook receiver, not an MX server. DNS/MX records and an inbound email provider must be configured externally. Native Mailday addresses and domain routing are not yet provisioned. MIME attachments are extracted and persisted to the configured attachment disk, with metadata linked to each inbound message. Inbound attachment bytes are capped at 5 MB total per webhook payload. Malware scanning is not yet enabled, and HTML email sanitization remains pending.
 
 
 ## Phase 4 — mailbox lifecycle foundation
@@ -171,3 +171,7 @@ Phase 4 adds CC/BCC recipient fields persisted with messages and passed to Nodem
 
 ### Phase 4 mailbox features\n\n- Drafts can be edited, autosaved, and sent from the Drafts mailbox.\n- Reply All and Forward compose flows are available.\n- Threaded messages are displayed together where thread metadata is present.\n- Outbound mail can be scheduled using a future local date/time; the delivery worker waits until the scheduled timestamp.\n- Users can configure a plain-text email signature in Settings; it is appended to outgoing messages when not already present.
 - Attachments can be uploaded to drafts, downloaded, removed, and included in outbound SMTP delivery. Upload limit is 20 MB per file. Storage is configurable via `ATTACHMENTS_DIR`; Render Blueprint configures a persistent disk.\n
+
+### Inbound attachment handling
+
+For inbound webhook messages containing MIME attachments, Mailday extracts the attachment content, stores it under a random UUID filename in the configured `ATTACHMENTS_DIR`, and records its original filename, MIME type, size, and message relation in PostgreSQL. Attachments are accessible through the same authenticated attachment listing/download endpoints as outbound attachments. The inbound webhook rejects attachment payloads totaling more than 5 MB. **Malware/virus scanning is not yet implemented**; operators should treat attachments as untrusted and consider scanning before production use.
