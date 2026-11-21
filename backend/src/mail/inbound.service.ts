@@ -8,6 +8,7 @@ import { Mailbox, MessageState } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { ElasticsearchService } from '../search/elasticsearch.service';
+import { AttachmentScanner } from '../messages/attachment-scanner.service';
 
 @Injectable()
 export class InboundService {
@@ -21,6 +22,7 @@ export class InboundService {
     private prisma: PrismaService,
     private redis: RedisService,
     private es: ElasticsearchService,
+    private scanner: AttachmentScanner,
   ) {
     this.token = config.get<string>('INBOUND_WEBHOOK_TOKEN') ?? '';
   }
@@ -61,6 +63,8 @@ export class InboundService {
     const attachments = (parsed?.attachments ?? []).filter(a => a.content?.length);
     const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.content.length, 0);
     if (totalAttachmentBytes > this.maxAttachmentBytes) throw new BadRequestException('Inbound attachments exceed 5 MB total limit');
+    const scanStatuses = await Promise.all(attachments.map(a => this.scanner.scan(a.content)));
+    if (scanStatuses.includes('INFECTED')) throw new BadRequestException('Inbound message rejected: malware detected in an attachment');
     const results: Array<{ recipient: string; status: string }> = [];
 
     for (const recipient of recipients) {
@@ -116,7 +120,7 @@ export class InboundService {
         this.logger.error('Inbound processing failed', (e as Error).message);
       }
     }
-    return { accepted: true, provider, providerMessageId, recipients: results, attachmentCount: attachments.length, attachmentBytes: totalAttachmentBytes, note: attachments.length ? 'Inbound attachments are stored on configured attachment storage. Malware scanning is not yet enabled.' : undefined };
+    return { accepted: true, provider, providerMessageId, recipients: results, attachmentCount: attachments.length, attachmentBytes: totalAttachmentBytes, note: attachments.length ? (scanStatuses.includes('UNCHECKED') ? 'Attachments stored; ClamAV is not configured, so these files remain unscanned.' : 'Attachments stored and scanned with ClamAV.') : undefined };
   }
 
   private normalizeAddresses(value: unknown): string[] {
