@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Send, Sparkles, Loader2 } from 'lucide-react';
-import { messagesApi, aiApi, AiTone, usersApi } from '@/lib/api';
+import { X, Send, Sparkles, Loader2, Paperclip, Download, Trash2 } from 'lucide-react';
+import { messagesApi, aiApi, AiTone, usersApi, AttachmentInfo } from '@/lib/api';
 import { useAppDispatch, useAppSelector } from '@/hooks';
 import { closeCompose, clearComposeDraft } from '@/features/ui/uiSlice';
 import { MailboxName } from '@/lib/api';
@@ -35,7 +35,7 @@ export default function ComposeModal() {
   const [aiError, setAiError] = useState('');
   const [deliveryNotice, setDeliveryNotice] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState('');
-  const [scheduledAt, setScheduledAt] = useState('');
+  const [scheduledAt, setScheduledAt] = useState('');\n  const [attachmentError, setAttachmentError] = useState('');\n  const [uploading, setUploading] = useState(false);\n  const { data: attachments = [] } = useQuery({ queryKey: ['attachments', draftId], queryFn: () => messagesApi.attachments(draftId!), enabled: Boolean(draftId) });
 
   // Prefill from a compose draft (e.g. an AI-generated reply) then clear it.
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function ComposeModal() {
     onError: (e) => setAiError((e as Error).message),
   });
 
-  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };
+  const closeAndSave = () => { if (dirty) saveDraft.mutate(); dispatch(closeCompose()); };\n\n  const attachFiles = async (files: FileList | null) => {\n    if (!files?.length) return; setAttachmentError(''); setUploading(true);\n    try {\n      if (!draftId) { const saved = await saveDraft.mutateAsync(); setDraftId(saved.id); setDirty(false); }\n      const targetId = draftId || (await messagesApi.create({ to: to.split(',').map(x => x.trim()).filter(Boolean), cc: cc.split(',').map(x => x.trim()).filter(Boolean), bcc: bcc.split(',').map(x => x.trim()).filter(Boolean), subject, body, mailbox: 'DRAFT' })).id;\n      setDraftId(targetId);\n      for (const file of Array.from(files)) { if (file.size > 20 * 1024 * 1024) throw new Error('Each attachment must be 20 MB or smaller.'); await messagesApi.uploadAttachment(targetId, file); }\n      qc.invalidateQueries({ queryKey: ['attachments', targetId] }); qc.invalidateQueries({ queryKey: ['messages'] });\n    } catch (e) { setAttachmentError((e as Error).message); } finally { setUploading(false); }\n  };
 
   if (!open) return null;
 
@@ -148,6 +148,23 @@ export default function ComposeModal() {
             value={body}
             onChange={(e) => { setBody(e.target.value); setDirty(true); }}
           />
+          <div className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
+            <div className="flex items-center gap-2">
+              <label className="btn-ghost border border-slate-300 text-xs dark:border-white/10 cursor-pointer">
+                <Paperclip className="h-4 w-4" /> {uploading ? 'Uploading…' : 'Attach files'}
+                <input type="file" multiple className="hidden" disabled={uploading} onChange={(e) => { void attachFiles(e.target.files); e.currentTarget.value = ''; }} />
+              </label>
+              <span className="text-xs text-slate-500">Maximum 20 MB per file</span>
+            </div>
+            {attachments.map((a: AttachmentInfo) => <div key={a.id} className="mt-2 flex items-center justify-between gap-2 text-sm">
+              <span className="truncate">{a.originalName} <span className="text-xs text-slate-500">({Math.ceil(a.size / 1024)} KB)</span></span>
+              <div className="flex shrink-0 gap-1">
+                <button className="btn-ghost h-7 w-7 !px-0" title="Download" onClick={() => messagesApi.downloadAttachment(a.id, a.originalName)}><Download className="h-3.5 w-3.5" /></button>
+                <button className="btn-ghost h-7 w-7 !px-0 text-red-500" title="Remove" onClick={() => messagesApi.deleteAttachment(a.id).then(() => qc.invalidateQueries({ queryKey: ['attachments', draftId] }))}><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>)}
+            {attachmentError && <p className="mt-2 text-xs text-red-500">{attachmentError}</p>}
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <button
