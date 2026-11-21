@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma, Mailbox, MessageState, Message } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -53,96 +53,51 @@ export class MessagesService {
     return where;
   }
 
-  /** Hybrid search: Elasticsearch when configured, otherwise Prisma ILIKE. */
   async list(user: AuthUser, input: ListInput) {
-    if (input.search && this.es.enabled) {
-      return this.searchWithEs(user, input);
-    }
+    if (input.search && this.es.enabled) return this.searchWithEs(user, input);
 
-    const cacheKey = `${this.cachePrefix(user.id)}${input.mailbox ?? 'ALL'}:${
-      input.search ?? ''
-    }:${input.page}:${input.limit}`;
+    const cacheKey = `${this.cachePrefix(user.id)}${input.mailbox ?? 'ALL'}:${input.search ?? ''}:${input.page}:${input.limit}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return cached;
 
     const skip = (input.page - 1) * input.limit;
     const where = this.buildWhere(user.id, input);
-
     const [items, total] = await Promise.all([
       this.prisma.message.findMany({
-        where,
-        orderBy: { sentAt: 'desc' },
-        skip,
-        take: input.limit,
+        where, orderBy: { sentAt: 'desc' }, skip, take: input.limit,
         select: {
-          id: true,
-          mailbox: true,
-          state: true,
-          from: true,
-          to: true,
-          subject: true,
-          snippet: true,
-          isRead: true,
-          isStarred: true,
-          isImportant: true,
-          labels: true,
-          hasAttachments: true,
-          sentAt: true,
+          id: true, mailbox: true, state: true, from: true, to: true, subject: true,
+          snippet: true, isRead: true, isStarred: true, isImportant: true, labels: true,
+          hasAttachments: true, sentAt: true,
         },
       }),
       this.prisma.message.count({ where }),
     ]);
-
-    const result = {
-      items,
-      page: input.page,
-      limit: input.limit,
-      total,
-      pages: Math.ceil(total / input.limit),
-    };
+    const result = { items, page: input.page, limit: input.limit, total, pages: Math.ceil(total / input.limit) };
     await this.redis.set(cacheKey, result, 30);
     return result;
   }
 
   private async searchWithEs(user: AuthUser, input: ListInput) {
-    const cacheKey = `es:${this.cachePrefix(user.id)}${input.mailbox ?? 'ALL'}:${
-      input.search
-    }:${input.page}:${input.limit}`;
+    const cacheKey = `es:${this.cachePrefix(user.id)}${input.mailbox ?? 'ALL'}:${input.search}:${input.page}:${input.limit}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return cached;
-
-    const { ids, total } = await this.es.searchIds(
-      user.id,
-      input.search!,
-      input.mailbox,
-      input.page,
-      input.limit,
-    );
+    const { ids, total } = await this.es.searchIds(user.id, input.search!, input.mailbox, input.page, input.limit);
     if (ids.length === 0) {
       const empty = { items: [], page: input.page, limit: input.limit, total, pages: 0 };
       await this.redis.set(cacheKey, empty, 30);
       return empty;
     }
-
-    const msgs = await this.prisma.message.findMany({ where: { id: { in: ids } } });
+    const msgs = await this.prisma.message.findMany({ where: { id: { in: ids }, ownerId: user.id } });
     const order = new Map(ids.map((id, i) => [id, i]));
     msgs.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-
-    const result = {
-      items: msgs.map((m) => this.toSummary(m)),
-      page: input.page,
-      limit: input.limit,
-      total,
-      pages: Math.ceil(total / input.limit),
-    };
+    const result = { items: msgs.map((m) => this.toSummary(m)), page: input.page, limit: input.limit, total, pages: Math.ceil(total / input.limit) };
     await this.redis.set(cacheKey, result, 30);
     return result;
   }
 
   async getById(user: AuthUser, id: string) {
-    const msg = await this.prisma.message.findFirst({
-      where: { id, ownerId: user.id },
-    });
+    const msg = await this.prisma.message.findFirst({ where: { id, ownerId: user.id } });
     if (!msg) throw new NotFoundException('Message not found');
     return msg;
   }
@@ -150,34 +105,30 @@ export class MessagesService {
   async create(user: AuthUser, dto: CreateMessageDto) {
     const snippet = (dto.body ?? '').replace(/<[^>]+>/g, ' ').slice(0, 160);
     const mailbox = dto.mailbox ?? Mailbox.INBOX;
-    const state = mailbox === Mailbox.SENT ? MessageState.SENT : MessageState.RECEIVED;
 
+    // Do not claim an email was sent or place it in Sent unless the SMTP provider
+    // confirms acceptance. The compose UI retains the text when this throws.
+    if (mailbox === Mailbox.SENT) {
+      if (!this.mail.enabled) {
+        throw new ServiceUnavailableException('Email sending is not configured yet. Your message was not sent.');
+      }
+      const delivery = await this.mail.send(dto.to, dto.subject ?? '', dto.body ?? '');
+      if (!delivery.sent) {
+        throw new ServiceUnavailableException('Email delivery failed. Your message was not sent; please try again.');
+      }
+      this.logger.log(`SMTP accepted outbound message (${delivery.messageId ?? 'no message ID'}) for ${user.email}`);
+    }
+
+    const state = mailbox === Mailbox.SENT ? MessageState.SENT : MessageState.RECEIVED;
     const created = await this.prisma.message.create({
       data: {
-        ownerId: user.id,
-        from: user.email,
-        to: dto.to,
-        subject: dto.subject ?? '',
-        body: dto.body ?? '',
-        snippet,
-        mailbox,
-        state,
-        labels: dto.labels ?? [],
+        ownerId: user.id, from: user.email, to: dto.to, subject: dto.subject ?? '',
+        body: dto.body ?? '', snippet, mailbox, state, labels: dto.labels ?? [],
         isImportant: dto.isImportant ?? false,
       },
     });
 
-    // Index for search (no-op if ES is disabled)
     await this.es.indexMessage(created);
-
-    // Real outbound delivery for sent mail (no-op / demo mode if SMTP unset)
-    if (mailbox === Mailbox.SENT) {
-      const result = await this.mail.send(dto.to, dto.subject ?? '', dto.body ?? '');
-      if (result.sent) {
-        this.logger.log(`Delivered message ${created.id} (${result.messageId})`);
-      }
-    }
-
     await this.redis.invalidatePrefix(this.cachePrefix(user.id));
     this.logger.log(`Message ${created.id} created for ${user.email}`);
     return created;
