@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { validateRuntimeConfiguration } from './config/runtime-validation';
+import { applySecurityHeaders } from './common/security-headers';
 
 async function bootstrap() {
   const logger = new Logger('MailDay');
@@ -26,6 +27,7 @@ async function bootstrap() {
   // Lightweight request observability: a server-generated correlation ID and
   // method/path/status/latency logs. Query strings are intentionally omitted.
   app.use((req: Request, res: Response, next: NextFunction) => {
+    applySecurityHeaders(res, process.env.NODE_ENV === 'production');
     const requestId = randomUUID();
     const startedAt = Date.now();
     res.setHeader('X-Request-ID', requestId);
