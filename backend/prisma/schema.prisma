@@ -165,6 +165,7 @@ model Attachment {
   storageName String   @unique
   mimeType    String
   size        Int
+  scanStatus  String   @default("UNCHECKED")
   createdAt   DateTime @default(now())
   @@index([messageId, createdAt])
 }
