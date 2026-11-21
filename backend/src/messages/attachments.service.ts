@@ -1,9 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
-import { basename } from 'path';
+import { basename, join } from 'path';
 import { mkdir, writeFile, readFile, unlink } from 'fs/promises';
-import { join } from 'path';
 import { AttachmentScanner } from './attachment-scanner.service';
 
 export interface AttachmentUploadFile { originalname: string; mimetype: string; size: number; buffer: Buffer; }
@@ -12,21 +11,34 @@ export interface AttachmentUploadFile { originalname: string; mimetype: string; 
 export class AttachmentsService {
   private readonly storageDir = process.env.ATTACHMENTS_DIR || join(process.cwd(), 'uploads');
 
+  constructor(private prisma: PrismaService, private scanner: AttachmentScanner) {}
+
   async upload(ownerId: string, messageId: string, file: AttachmentUploadFile) {
     const message = await this.prisma.message.findFirst({ where: { id: messageId, ownerId } });
     if (!message) throw new NotFoundException('Message not found');
     if (!file || !file.buffer) throw new BadRequestException('No file uploaded');
+
     const scanStatus = await this.scanner.scan(file.buffer);
     if (scanStatus === 'INFECTED') throw new BadRequestException('Attachment rejected: malware detected');
+
     const storageName = randomUUID();
+    const safeOriginalName = basename(file.originalname || 'attachment')
+      .replace(/[\\u0000-\\u001f\\u007f]/g, '_')
+      .slice(0, 255) || 'attachment';
+    const safeMimeType = /^[a-z0-9!#$&^_.+-]+\\/[a-z0-9!#$&^_.+-]+$/i.test(file.mimetype || '')
+      ? file.mimetype
+      : 'application/octet-stream';
+
     await mkdir(this.storageDir, { recursive: true });
     await writeFile(join(this.storageDir, storageName), file.buffer, { flag: 'wx' });
     try {
       const attachment = await this.prisma.attachment.create({ data: {
-        messageId, originalName: basename(file.originalname || 'attachment').replace(/[\\u0000-\\u001f\\u007f]/g, '_').slice(0, 255) || 'attachment', storageName,
-        mimeType: /^[a-z0-9!#originalName: file.originalname.slice(0, 255), storageName,
-        mimeType: file.mimetype || 'application/octet-stream', size: file.size, scanStatus,^_.+-]+\\/[a-z0-9!#originalName: file.originalname.slice(0, 255), storageName,
-        mimeType: file.mimetype || 'application/octet-stream', size: file.size, scanStatus,^_.+-]+$/i.test(file.mimetype || '') ? file.mimetype : 'application/octet-stream', size: file.buffer.length, scanStatus,
+        messageId,
+        originalName: safeOriginalName,
+        storageName,
+        mimeType: safeMimeType,
+        size: file.buffer.length,
+        scanStatus,
       }});
       await this.prisma.message.update({ where: { id: messageId }, data: { hasAttachments: true } });
       return attachment;
@@ -59,6 +71,4 @@ export class AttachmentsService {
     if (!remaining) await this.prisma.message.update({ where: { id: attachment.messageId }, data: { hasAttachments: false } });
     return { success: true };
   }
-
-  constructor(private prisma: PrismaService, private scanner: AttachmentScanner) {}
 }
