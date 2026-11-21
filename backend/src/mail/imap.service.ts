@@ -258,7 +258,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     const toAddresses = extractAddresses(parsed.to);
     const subject = parsed.subject ?? '';
     const body = htmlEmailToText(String(parsed.text || parsed.html || parsed.textAsHtml || ''));
-    const snippet = body.replace(/\\s+/g, ' ').slice(0, 160);
+    const snippet = body.replace(/\s+/g, ' ').slice(0, 160);
 
     const created = await this.prisma.message.create({
       data: {
