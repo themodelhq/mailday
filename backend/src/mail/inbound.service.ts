@@ -103,7 +103,7 @@ export class InboundService {
             await this.prisma.attachment.create({ data: {
               messageId: message.id, originalName, storageName,
               mimeType: attachment.contentType || 'application/octet-stream',
-              size: attachment.content.length,
+              size: attachment.content.length, scanStatus: scanStatuses[attachments.indexOf(attachment)],
             } });
           } catch (err) {
             await unlink(join(this.storageDir, storageName)).catch(() => undefined);
