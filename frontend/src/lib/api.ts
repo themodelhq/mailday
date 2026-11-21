@@ -282,7 +282,8 @@ export const messagesApi = {
   get: (id: string) => fetchWithAuth<Message>(`${api}/messages/${id}`),
   thread: (threadId: string) => fetchWithAuth<Message[]>(`${api}/messages/thread/${threadId}`),
   deliveryStatus: (id: string) => fetchWithAuth<{ id: string; status: string; attempts: number; maxAttempts: number; nextAttemptAt: string; providerMessageId: string | null; lastError: string | null; sentAt: string | null; failedAt: string | null }>(`${api}/messages/${id}/delivery`),
-  create: (body: { to?: string[]; cc?: string[]; bcc?: string[]; subject?: string; body?: string; mailbox?: MailboxName; labels?: string[]; isImportant?: boolean; idempotencyKey?: string; threadId?: string; inReplyTo?: string }) =>
+  sendDraft: (id: string, idempotencyKey?: string) => fetchWithAuth<Message>(`${api}/messages/${id}/send`, { method: 'POST', body: JSON.stringify({ idempotencyKey }) }),
+  create: (body: { to?: string; cc?: string[]; bcc?: string[]; subject?: string; body?: string; mailbox?: MailboxName; labels?: string[]; isImportant?: boolean; idempotencyKey?: string; threadId?: string; inReplyTo?: string }) =>
     fetchWithAuth<Message>(`${api}/messages`, { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: Record<string, unknown>) =>
     fetchWithAuth<Message>(`${api}/messages/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
