@@ -15,7 +15,7 @@ export default function SettingsPage() {
   const displayName = useAppSelector((s) => s.session.displayName);
 
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('');
+  const [avatar, setAvatar] = useState('');\n  const [signature, setSignature] = useState('');
 
   const [host, setHost] = useState('');
   const [port, setPort] = useState('');
@@ -26,12 +26,12 @@ export default function SettingsPage() {
   useEffect(() => {
     if (me) {
       setName(me.displayName);
-      setAvatar(me.avatarUrl ?? '');
+      setAvatar(me.avatarUrl ?? '');\n      setSignature(me.signature ?? '');
     }
   }, [me]);
 
   const save = useMutation({
-    mutationFn: () => usersApi.update({ displayName: name, avatarUrl: avatar }),
+    mutationFn: () => usersApi.update({ displayName: name, avatarUrl: avatar, signature }),
     onSuccess: (updated) => {
       dispatch(setProfile({ displayName: updated.displayName, avatarUrl: updated.avatarUrl }));
       qc.invalidateQueries({ queryKey: ['me'] });
