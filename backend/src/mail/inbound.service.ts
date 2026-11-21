@@ -1,6 +1,8 @@
 import { Injectable, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, timingSafeEqual } from 'crypto';
+import { createHash, timingSafeEqual, randomUUID } from 'crypto';
+import { mkdir, writeFile, unlink } from 'fs/promises';
+import { join } from 'path';
 import { simpleParser } from 'mailparser';
 import { Mailbox, MessageState } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,6 +13,8 @@ import { ElasticsearchService } from '../search/elasticsearch.service';
 export class InboundService {
   private readonly logger = new Logger('Inbound');
   private readonly token: string;
+  private readonly storageDir = process.env.ATTACHMENTS_DIR || join(process.cwd(), 'uploads');
+  private readonly maxAttachmentBytes = 5 * 1024 * 1024;
 
   constructor(
     config: ConfigService,
@@ -54,7 +58,9 @@ export class InboundService {
       .replace(/\s+/g, ' ')
       .trim();
     const snippet = body.slice(0, 160);
-    const attachments = parsed?.attachments ?? [];
+    const attachments = (parsed?.attachments ?? []).filter(a => a.content?.length);
+    const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.content.length, 0);
+    if (totalAttachmentBytes > this.maxAttachmentBytes) throw new BadRequestException('Inbound attachments exceed 5 MB total limit');
     const results: Array<{ recipient: string; status: string }> = [];
 
     for (const recipient of recipients) {
@@ -84,6 +90,22 @@ export class InboundService {
           labels: ['INBOUND', `provider:${provider}`, `mid:${providerMessageId}`],
           hasAttachments: attachments.length > 0,
         } });
+        for (const attachment of attachments) {
+          const storageName = randomUUID();
+          const originalName = (attachment.filename || 'attachment').split('/').join('_').split('\\\\').join('_').replace(/[\\r\\n]/g, '_').slice(0, 255);
+          await mkdir(this.storageDir, { recursive: true });
+          await writeFile(join(this.storageDir, storageName), attachment.content, { flag: 'wx' });
+          try {
+            await this.prisma.attachment.create({ data: {
+              messageId: message.id, originalName, storageName,
+              mimeType: attachment.contentType || 'application/octet-stream',
+              size: attachment.content.length,
+            } });
+          } catch (err) {
+            await unlink(join(this.storageDir, storageName)).catch(() => undefined);
+            throw err;
+          }
+        }
         await this.prisma.inboundReceipt.update({ where: { id: receipt.id }, data: { status: 'PROCESSED', messageId: message.id, processedAt: new Date() } });
         await this.es.indexMessage(message).catch(e => this.logger.warn('Inbound search indexing failed: ' + (e as Error).message));
         await this.redis.invalidatePrefix(`messages:${user.id}:`).catch(() => undefined);
@@ -94,7 +116,7 @@ export class InboundService {
         this.logger.error('Inbound processing failed', (e as Error).message);
       }
     }
-    return { accepted: true, provider, providerMessageId, recipients: results, attachmentCount: attachments.length, note: attachments.length ? 'Attachments detected but binary storage is not yet configured.' : undefined };
+    return { accepted: true, provider, providerMessageId, recipients: results, attachmentCount: attachments.length, attachmentBytes: totalAttachmentBytes, note: attachments.length ? 'Inbound attachments are stored on configured attachment storage. Malware scanning is not yet enabled.' : undefined };
   }
 
   private normalizeAddresses(value: unknown): string[] {
