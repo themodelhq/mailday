@@ -34,7 +34,7 @@ describe('BounceService', () => {
   });
 
   it('records the bounce event and marks delivery/message failed', async () => {
-    const delivery = { id: 'delivery-1', messageId: 'message-1', message: { to: ['recipient@example.test'], cc: [], bcc: [] } };
+    const delivery = { id: 'delivery-1', messageId: 'message-1', status: 'SENT', message: { to: ['recipient@example.test'], cc: [], bcc: [] } };
     const tx: any = {
       outboundDeliveryEvent: { create: jest.fn(async () => ({ id: 'event-1' })) },
       outboundDelivery: { update: jest.fn(async () => ({ status: 'BOUNCED' })) },
