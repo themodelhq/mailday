@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Mail } from 'lucide-react';
 import { messagesApi, authApi, MessageSummary } from '@/lib/api';
@@ -14,15 +14,18 @@ import ComposeModal from '@/components/mail/ComposeModal';
 
 function MailApp() {
   const sp = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const mailbox = sp.get('mailbox') ?? 'INBOX';
   const view = sp.get('view') ?? 'all';
   const search = sp.get('search') ?? '';
+  const page = Math.max(1, Number(sp.get('page') ?? '1') || 1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const dispatch = useAppDispatch();
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['messages', mailbox, search],
-    queryFn: () => messagesApi.list({ mailbox, search, limit: 20 }),
+    queryKey: ['messages', mailbox, search, page],
+    queryFn: () => messagesApi.list({ mailbox, search, page, limit: 20 }),
     staleTime: 15_000,
   });
 
@@ -32,6 +35,12 @@ function MailApp() {
     if (view === 'unread') return !m.isRead;
     return true;
   });
+
+  const changePage = (nextPage: number) => {
+    const params = new URLSearchParams(sp.toString());
+    params.set('page', String(nextPage));
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const signOut = () => {
     authApi.logout();
@@ -48,6 +57,10 @@ function MailApp() {
           loading={isLoading}
           selectedId={selectedId}
           onSelect={(id) => setSelectedId(id)}
+          page={data?.page ?? page}
+          pages={data?.pages ?? 0}
+          total={data?.total ?? 0}
+          onPageChange={changePage}
         />
         <div className="hidden min-w-0 flex-1 flex-col border-l border-slate-200/70 dark:border-white/10 md:flex">
           {selectedId ? (
