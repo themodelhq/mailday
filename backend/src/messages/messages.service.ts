@@ -184,6 +184,27 @@ export class MessagesService {
     return delivery;
   }
 
+  async retryDelivery(user: AuthUser, messageId: string) {
+    if (!this.mail.enabled) throw new ServiceUnavailableException('Outbound email is not configured. Delivery cannot be retried.');
+    const delivery = await this.prisma.outboundDelivery.findFirst({ where: { messageId, ownerId: user.id } });
+    if (!delivery) throw new NotFoundException('Outbound delivery not found');
+    if (delivery.status !== 'FAILED') throw new BadRequestException('Only failed deliveries can be retried manually');
+
+    const retried = await this.prisma.$transaction(async (tx) => {
+      const claim = await tx.outboundDelivery.updateMany({
+        where: { id: delivery.id, ownerId: user.id, status: 'FAILED' },
+        data: { status: 'QUEUED', attempts: 0, nextAttemptAt: new Date(), lockedAt: null, lastError: null, failedAt: null },
+      });
+      if (claim.count !== 1) throw new BadRequestException('Delivery is no longer eligible for retry');
+      await tx.message.update({ where: { id: messageId }, data: { state: MessageState.QUEUED } });
+      return tx.outboundDelivery.findUnique({ where: { id: delivery.id } });
+    });
+
+    await this.redis.invalidatePrefix(this.cachePrefix(user.id));
+    this.logger.log(`Manual retry queued for delivery ${delivery.id}`);
+    return retried;
+  }
+
   async update(user: AuthUser, id: string, dto: UpdateMessageDto) {
     await this.getById(user, id);
     const updated = await this.prisma.message.update({
