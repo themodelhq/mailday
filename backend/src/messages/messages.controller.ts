@@ -36,7 +36,7 @@ export class MessagesController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/attachments')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 }, fileFilter: (_req, file, cb) => {
-    const blocked = /\\.(exe|dll|bat|cmd|com|msi|sh|ps1|js|jar|scr|vbs|php)$/i.test(file.originalname);
+    const blocked = /\.(exe|dll|bat|cmd|com|msi|sh|ps1|js|jar|scr|vbs|php)$/i.test(file.originalname);
     if (blocked) return cb(new BadRequestException('This file type is not allowed'), false);
     cb(null, true);
   }}))
@@ -48,7 +48,7 @@ export class MessagesController {
   @Get('attachments/:attachmentId/download')
   async downloadAttachment(@CurrentUser() user: AuthUser, @Param('attachmentId') id: string, @Res() res: Response) {
     const { attachment, data } = await this.attachments.download(user.id, id);
-    const safeName = attachment.originalName.replace(/[\\r\\n\\"\\\\]/g, '_');
+    const safeName = attachment.originalName.replace(/[\r\n"\\]/g, '_');
     res.setHeader('Content-Type', attachment.mimeType);
     res.setHeader('Content-Length', data.length);
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
