@@ -138,3 +138,11 @@ cut: a runnable product now, with clearly marked seams for the remaining enterpr
 ## License
 
 MIT.
+
+## Outbound delivery queue
+
+Outbound messages are now persisted before delivery. When SMTP is configured, sending creates a message in `QUEUED` state and an `OutboundDelivery` record. A background worker polls the database, claims work using Redis locks, and delivers via SMTP. It records provider message IDs and transitions to `SENT`, `RETRYING`, or `FAILED`; retry delays use exponential backoff (capped at one hour), with eight attempts by default. Abandoned processing records are recovered after a three-minute lease.
+
+Delivery status is available to the authenticated message owner at `GET /api/messages/:id/delivery`. Configure `SMTP_HOST` and related `SMTP_*` variables before sending. Worker settings: `OUTBOUND_WORKER_ENABLED=true` and `OUTBOUND_WORKER_POLL_MS=5000`.
+
+**Operational note:** SMTP acceptance is not proof that the recipient's mailbox received the email. Bounce/webhook ingestion and provider-specific delivery events are not yet implemented. The queue also cannot guarantee exactly-once delivery if an SMTP server accepts a message and the database update fails immediately afterward; this is a distributed-systems edge case that can result in a retry duplicate.
