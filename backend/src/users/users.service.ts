@@ -29,7 +29,7 @@ export class UsersService {
       where: { id: user.id },
       data: {
         ...(dto.displayName !== undefined ? { displayName: dto.displayName } : {}),
-        ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl } : {}),
+        ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl } : {}),\n        ...(dto.signature !== undefined ? { signature: dto.signature } : {}),
       },
       select: {
         id: true,
