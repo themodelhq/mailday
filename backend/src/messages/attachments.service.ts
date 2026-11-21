@@ -23,7 +23,7 @@ export class AttachmentsService {
 
     const storageName = randomUUID();
     const safeOriginalName = basename(file.originalname || 'attachment')
-      .replace(/[\\u0000-\\u001f\\u007f]/g, '_')
+      .replace(/[\u0000-\u001f\u007f]/g, '_')
       .slice(0, 255) || 'attachment';
     const mimeParts = (file.mimetype || '').split('/');
     const safeMimeType = mimeParts.length === 2 && mimeParts.every((part) => /^[a-z0-9!#$&^_.+-]+$/i.test(part))
