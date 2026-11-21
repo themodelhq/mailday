@@ -136,6 +136,10 @@ export class MessagesService {
     return created;
   }
 
+  async getThread(user: AuthUser, threadId: string) {
+    return this.prisma.message.findMany({ where: { ownerId: user.id, threadId }, orderBy: { sentAt: 'asc' } });
+  }
+
   async getDeliveryStatus(user: AuthUser, messageId: string) {
     const delivery = await this.prisma.outboundDelivery.findFirst({
       where: { messageId, ownerId: user.id },
