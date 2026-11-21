@@ -18,9 +18,8 @@ import { CreateMessageDto, UpdateMessageDto } from './dto/messages.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
 import { Response } from 'express';
-import { AttachmentsService } from './attachments.service';
+import { AttachmentsService, AttachmentUploadFile } from './attachments.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Controller('messages')
@@ -35,12 +34,12 @@ export class MessagesController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/attachments')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 }, fileFilter: (_req, file, cb) => {
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 }, fileFilter: (_req, file, cb) => {
     const blocked = /\.(exe|dll|bat|cmd|com|msi|sh|ps1|js|jar|scr|vbs|php)$/i.test(file.originalname);
     if (blocked) return cb(new BadRequestException('This file type is not allowed'), false);
     cb(null, true);
   }}))
-  uploadAttachment(@CurrentUser() user: AuthUser, @Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+  uploadAttachment(@CurrentUser() user: AuthUser, @Param('id') id: string, @UploadedFile() file: AttachmentUploadFile) {
     return this.attachments.upload(user.id, id, file);
   }
 
