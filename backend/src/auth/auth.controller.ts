@@ -26,7 +26,10 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout(@Req() req: { body: { refreshToken?: string } }) {
-    return this.auth.logout(req.body.refreshToken ?? '');
+  logout(@Req() req: { body: { refreshToken?: string }; headers: { authorization?: string } }) {
+    const accessToken = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7)
+      : '';
+    return this.auth.logout(req.body.refreshToken ?? '', accessToken);
   }
 }
