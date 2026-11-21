@@ -48,7 +48,7 @@ export class MailService {
     }
   }
 
-  async send(to: string[], subject: string, html: string): Promise<SendResult> {
+  async send(to: string[], subject: string, html: string, cc: string[] = [], bcc: string[] = []): Promise<SendResult> {
     if (!this.transporter) {
       this.logger.debug('SMTP not configured — message stored locally (demo mode).');
       return { sent: false, error: 'SMTP_NOT_CONFIGURED' };
@@ -57,6 +57,8 @@ export class MailService {
       const info = await this.transporter.sendMail({
         from: this.from,
         to,
+        cc: cc.length ? cc : undefined,
+        bcc: bcc.length ? bcc : undefined,
         subject,
         html,
       });
