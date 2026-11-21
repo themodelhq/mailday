@@ -49,7 +49,7 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
       const delivery = await this.prisma.outboundDelivery.findUnique({ where: { id }, include: { message: true } });
       if (!delivery || !['QUEUED', 'RETRYING'].includes(delivery.status) || delivery.nextAttemptAt > new Date()) return;
       await this.prisma.outboundDelivery.update({ where: { id }, data: { status: 'PROCESSING', lockedAt: new Date(), attempts: { increment: 1 } } });
-      const result = await this.mail.send(delivery.message.to, delivery.message.subject, delivery.message.body);
+      const result = await this.mail.send(delivery.message.to, delivery.message.subject, delivery.message.body, delivery.message.cc, delivery.message.bcc);
       if (result.sent) {
         await this.prisma.$transaction([
           this.prisma.outboundDelivery.update({ where: { id }, data: { status: 'SENT', providerMessageId: result.messageId ?? null, lastError: null, sentAt: new Date(), lockedAt: null } }),
