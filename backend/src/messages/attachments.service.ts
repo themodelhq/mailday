@@ -4,11 +4,13 @@ import { randomUUID } from 'crypto';
 import { mkdir, writeFile, readFile, unlink } from 'fs/promises';
 import { join } from 'path';
 
+export interface AttachmentUploadFile { originalname: string; mimetype: string; size: number; buffer: Buffer; }
+
 @Injectable()
 export class AttachmentsService {
   private readonly storageDir = process.env.ATTACHMENTS_DIR || join(process.cwd(), 'uploads');
 
-  async upload(ownerId: string, messageId: string, file: Express.Multer.File) {
+  async upload(ownerId: string, messageId: string, file: AttachmentUploadFile) {
     const message = await this.prisma.message.findFirst({ where: { id: messageId, ownerId } });
     if (!message) throw new NotFoundException('Message not found');
     if (!file || !file.buffer) throw new BadRequestException('No file uploaded');
