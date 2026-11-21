@@ -105,33 +105,41 @@ export class MessagesService {
   async create(user: AuthUser, dto: CreateMessageDto) {
     const snippet = (dto.body ?? '').replace(/<[^>]+>/g, ' ').slice(0, 160);
     const mailbox = dto.mailbox ?? Mailbox.INBOX;
+    const isOutbound = mailbox === Mailbox.SENT;
 
-    // Do not claim an email was sent or place it in Sent unless the SMTP provider
-    // confirms acceptance. The compose UI retains the text when this throws.
-    if (mailbox === Mailbox.SENT) {
-      if (!this.mail.enabled) {
-        throw new ServiceUnavailableException('Email sending is not configured yet. Your message was not sent.');
-      }
-      const delivery = await this.mail.send(dto.to, dto.subject ?? '', dto.body ?? '');
-      if (!delivery.sent) {
-        throw new ServiceUnavailableException('Email delivery failed. Your message was not sent; please try again.');
-      }
-      this.logger.log(`SMTP accepted outbound message (${delivery.messageId ?? 'no message ID'}) for ${user.email}`);
+    if (isOutbound && !this.mail.enabled) {
+      throw new ServiceUnavailableException('Outbound email is not configured. Your message was not queued.');
     }
 
-    const state = mailbox === Mailbox.SENT ? MessageState.SENT : MessageState.RECEIVED;
-    const created = await this.prisma.message.create({
-      data: {
-        ownerId: user.id, from: user.email, to: dto.to, subject: dto.subject ?? '',
-        body: dto.body ?? '', snippet, mailbox, state, labels: dto.labels ?? [],
-        isImportant: dto.isImportant ?? false,
-      },
+    const created = await this.prisma.$transaction(async (tx) => {
+      const message = await tx.message.create({
+        data: {
+          ownerId: user.id, from: user.email, to: dto.to, subject: dto.subject ?? '',
+          body: dto.body ?? '', snippet, mailbox, state: isOutbound ? MessageState.QUEUED : MessageState.RECEIVED,
+          labels: dto.labels ?? [], isImportant: dto.isImportant ?? false,
+        },
+      });
+      if (isOutbound) {
+        await tx.outboundDelivery.create({
+          data: { ownerId: user.id, messageId: message.id, idempotencyKey: dto.idempotencyKey ?? undefined },
+        });
+      }
+      return message;
     });
 
     await this.es.indexMessage(created);
     await this.redis.invalidatePrefix(this.cachePrefix(user.id));
-    this.logger.log(`Message ${created.id} created for ${user.email}`);
+    this.logger.log(isOutbound ? `Message ${created.id} queued for delivery` : `Message ${created.id} created for ${user.email}`);
     return created;
+  }
+
+  async getDeliveryStatus(user: AuthUser, messageId: string) {
+    const delivery = await this.prisma.outboundDelivery.findFirst({
+      where: { messageId, ownerId: user.id },
+      select: { id: true, status: true, attempts: true, maxAttempts: true, nextAttemptAt: true, providerMessageId: true, lastError: true, createdAt: true, updatedAt: true, sentAt: true, failedAt: true },
+    });
+    if (!delivery) throw new NotFoundException('Outbound delivery not found');
+    return delivery;
   }
 
   async update(user: AuthUser, id: string, dto: UpdateMessageDto) {
