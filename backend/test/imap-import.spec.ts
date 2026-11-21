@@ -15,7 +15,7 @@ describe('IMAP message import deduplication', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.message.count.mockResolvedValue(0);
-    prisma.message.create.mockImplementation(async (args) => ({ id: 'message-1', ...args.data }));
+    prisma.message.create.mockImplementation(async (args: any) => ({ id: 'message-1', ...args.data }));
     service = new ImapService(prisma, redis, es, crypto);
   });
 
