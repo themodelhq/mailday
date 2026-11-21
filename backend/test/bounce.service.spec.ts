@@ -24,7 +24,7 @@ describe('BounceService', () => {
     const prisma: any = {
       outboundDeliveryEvent: { findFirst: jest.fn(async () => null) },
       outboundDelivery: { findFirst: jest.fn(async () => ({
-        id: 'delivery-1', messageId: 'message-1', message: { to: ['expected@example.test'], cc: [], bcc: [] },
+        id: 'delivery-1', messageId: 'message-1', status: 'SENT', message: { to: ['expected@example.test'], cc: [], bcc: [] },
       })) },
     };
     const service = new BounceService(prisma, config);
