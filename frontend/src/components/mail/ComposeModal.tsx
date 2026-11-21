@@ -39,6 +39,8 @@ export default function ComposeModal() {
   useEffect(() => {
     if (open && (draft.to || draft.subject || draft.body)) {
       setTo(draft.to ?? '');
+      setCc(draft.cc ?? '');
+      setBcc(draft.bcc ?? '');
       setSubject(draft.subject ?? '');
       setBody(draft.body ?? '');
       setThreadId(draft.threadId);
