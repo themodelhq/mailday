@@ -33,7 +33,7 @@ export function htmlEmailToText(input: string): string {
     .replace(/&([a-zA-Z]+|#x[0-9a-fA-F]+|#X[0-9a-fA-F]+|#[0-9]+);/g, (_, entity: string) => decodeEntity(entity))
     .replace(/[\t\r ]+/g, ' ')
     .replace(/\n[ \t]+/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n{2,}/g, '\n')
     .replace(/^\n+/, '')
     .trim();
 }
