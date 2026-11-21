@@ -90,9 +90,24 @@ export class MessagesService {
     if (cached) return cached;
     const { ids, total } = await this.es.searchIds(user.id, input.search!, input.mailbox, input.page, input.limit);
     if (ids.length === 0) {
-      const empty = { items: [], page: input.page, limit: input.limit, total, pages: 0 };
-      await this.redis.set(cacheKey, empty, 30);
-      return empty;
+      // Elasticsearch can be unavailable or stale. Use the database search path
+      // so a transient index failure never makes a mailbox appear empty.
+      const where = this.buildWhere(user.id, input);
+      const skip = (input.page - 1) * input.limit;
+      const [items, fallbackTotal] = await Promise.all([
+        this.prisma.message.findMany({
+          where, orderBy: { sentAt: 'desc' }, skip, take: input.limit,
+          select: {
+            id: true, mailbox: true, state: true, from: true, to: true, subject: true,
+            snippet: true, isRead: true, isStarred: true, isImportant: true, labels: true,
+            hasAttachments: true, sentAt: true,
+          },
+        }),
+        this.prisma.message.count({ where }),
+      ]);
+      const fallback = { items, page: input.page, limit: input.limit, total: fallbackTotal, pages: Math.ceil(fallbackTotal / input.limit) };
+      await this.redis.set(cacheKey, fallback, 30);
+      return fallback;
     }
     const msgs = await this.prisma.message.findMany({ where: { id: { in: ids }, ownerId: user.id } });
     const order = new Map(ids.map((id, i) => [id, i]));
