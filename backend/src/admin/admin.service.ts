@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly mail: MailService) {}
 
   async stats() {
     const since = new Date(Date.now() - 24 * 3600 * 1000);
@@ -22,6 +23,30 @@ export class AdminService {
       admins,
       activeToday,
       byMailbox: Object.fromEntries(byMailbox.map((g) => [g.mailbox, g._count._all])),
+    };
+  }
+
+  async deliveryStats() {
+    const now = new Date();
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const [byStatus, queued, retrying, processing, sent24h, failed24h, bounced24h, recentFailures, oldestQueued] = await Promise.all([
+      this.prisma.outboundDelivery.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.outboundDelivery.count({ where: { status: 'QUEUED' } }),
+      this.prisma.outboundDelivery.count({ where: { status: 'RETRYING' } }),
+      this.prisma.outboundDelivery.count({ where: { status: 'PROCESSING' } }),
+      this.prisma.outboundDelivery.count({ where: { status: 'SENT', sentAt: { gte: since24h } } }),
+      this.prisma.outboundDelivery.count({ where: { status: 'FAILED', failedAt: { gte: since24h } } }),
+      this.prisma.outboundDelivery.count({ where: { status: 'BOUNCED', failedAt: { gte: since24h } } }),
+      this.prisma.outboundDelivery.findMany({ where: { status: { in: ['FAILED', 'BOUNCED'] } }, orderBy: { failedAt: 'desc' }, take: 10, select: { id: true, messageId: true, status: true, attempts: true, lastError: true, failedAt: true, provider: true } }),
+      this.prisma.outboundDelivery.findFirst({ where: { status: { in: ['QUEUED', 'RETRYING'] } }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
+    ]);
+    return {
+      generatedAt: now.toISOString(),
+      smtp: { configured: this.mail.enabled, verified: this.mail.enabled ? await this.mail.verify() : false },
+      totals: Object.fromEntries(byStatus.map((item) => [item.status, item._count._all])),
+      queue: { queued, retrying, processing, oldestQueuedAt: oldestQueued?.createdAt ?? null },
+      last24Hours: { sent: sent24h, failed: failed24h, bounced: bounced24h },
+      recentFailures,
     };
   }
 
