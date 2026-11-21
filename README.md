@@ -145,7 +145,24 @@ Outbound messages are now persisted before delivery. When SMTP is configured, se
 
 Delivery status is available to the authenticated message owner at `GET /api/messages/:id/delivery`. Configure `SMTP_HOST` and related `SMTP_*` variables before sending. Worker settings: `OUTBOUND_WORKER_ENABLED=true` and `OUTBOUND_WORKER_POLL_MS=5000`.
 
-**Operational note:** SMTP acceptance is not proof that the recipient's mailbox received the email. Bounce/webhook ingestion and provider-specific delivery events are not yet implemented. The queue also cannot guarantee exactly-once delivery if an SMTP server accepts a message and the database update fails immediately afterward; this is a distributed-systems edge case that can result in a retry duplicate.
+**Operational note:** SMTP acceptance is not proof that the recipient's mailbox received the email. Provider-neutral bounce-event ingestion is now available, but each sending provider must be configured to forward bounce events to MailDay. The queue also cannot guarantee exactly-once delivery if an SMTP server accepts a message and the database update fails immediately afterward; this is a distributed-systems edge case that can result in a retry duplicate.
+
+### Outbound bounce webhook and event reporting
+
+Set `DELIVERY_BOUNCE_WEBHOOK_TOKEN` to a strong secret. A provider adapter/webhook should POST bounce events to `/api/webhooks/delivery/bounce` with `X-Mailday-Bounce-Token`. The payload must include the SMTP Message-ID returned by MailDay/Nodemailer, a unique provider event ID, and the affected recipient. MailDay validates that the recipient belongs to the original message, deduplicates provider events, records delivery-event history, and marks the delivery `BOUNCED` and the message `FAILED`.
+
+Example:
+
+```bash
+curl -X POST https://YOUR-MAILDAY-API/api/webhooks/delivery/bounce \
+  -H 'Content-Type: application/json' \
+  -H 'X-Mailday-Bounce-Token: YOUR_BOUNCE_WEBHOOK_TOKEN' \
+  -d '{"provider":"your-provider","eventId":"bounce-event-123","messageId":"<smtp-message-id>","recipient":"recipient@example.com","reason":"Mailbox unavailable","bouncedAt":"2026-11-21T12:00:00Z"}'
+```
+
+Authenticated delivery status `GET /api/messages/:id/delivery` now includes the latest 20 delivery events. Failed deliveries can be manually re-queued with `POST /api/messages/:id/delivery/retry`; this only works for `FAILED` deliveries and requires SMTP to be configured. Permanent SMTP errors (5xx, authentication/envelope errors) stop automatic retries, while temporary 4xx and transport errors use retry backoff.
+
+**Provider integration note:** MailDay exposes the generic receiver, but a provider-specific webhook adapter/configuration is still needed to translate that provider's event format and deliver it to this endpoint. SMTP itself does not supply a universal bounce webhook.
 
 ### Native inbound webhook (Phase 3 foundation)
 
