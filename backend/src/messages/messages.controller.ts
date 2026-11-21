@@ -85,6 +85,12 @@ export class MessagesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post(':id/delivery/retry')
+  retryDelivery(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.messages.retryDelivery(user, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   get(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.messages.getById(user, id);
