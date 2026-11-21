@@ -74,3 +74,7 @@ Each HTTP request receives a server-generated `X-Request-ID` response header. Th
 ## Dependency maintenance
 
 Dependabot is configured to check backend, frontend, and GitHub Actions dependencies weekly and open grouped minor/patch update pull requests. Major updates are kept separate for review. Dependency update pull requests must pass the normal CI build and tests before merging. Do not apply broad `npm audit fix --force` updates without reviewing breaking changes and the dependency tree.
+
+## Automated dependency audit reports
+
+A scheduled GitHub Actions workflow runs `npm audit` for backend and frontend dependencies weekly, on dependency-lockfile changes, and on manual dispatch. Reports are uploaded as 30-day workflow artifacts. The audit reporting job does not automatically fail the build: findings should be reviewed and remediated through dependency update PRs so fixes can be tested without unexpectedly blocking deployment.
