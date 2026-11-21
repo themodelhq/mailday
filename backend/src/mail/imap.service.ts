@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
 import { createHash } from 'crypto';
+import { lookup } from 'dns/promises';
+import { isIP } from 'net';
 import { simpleParser, ParsedMail } from 'mailparser';
 import { ImapAccount, Mailbox, MessageState } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -28,6 +30,42 @@ function extractAddresses(field: unknown): string[] {
     }
   }
   return result;
+}
+
+function isPublicAddress(address: string): boolean {
+  const version = isIP(address);
+  if (version === 4) {
+    const octets = address.split('.').map(Number);
+    const [a, b] = octets;
+    return !(a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) ||
+      (a === 192 && b === 0) || (a === 198 && (b === 18 || b === 19)) ||
+      (a === 192 && b === 88 && octets[2] === 99);
+  }
+  if (version === 6) {
+    const normalized = address.toLowerCase();
+    // Only global-unicast IPv6 is permitted. This excludes loopback, link-local,
+    // unique-local, multicast, unspecified and IPv4-mapped addresses.
+    return normalized.startsWith('2') || normalized.startsWith('3');
+  }
+  return false;
+}
+
+async function validateImapHost(host: string): Promise<void> {
+  const normalized = host.trim().replace(/^\\[|\\]$/g, '');
+  if (!normalized || normalized.includes('/') || normalized.includes('\\\\') || normalized.includes('@')) {
+    throw new BadRequestException('Invalid IMAP server hostname');
+  }
+  try {
+    const addresses = isIP(normalized) ? [{ address: normalized }] : await lookup(normalized, { all: true, verbatim: true });
+    if (!addresses.length || addresses.some((entry) => !isPublicAddress(entry.address))) {
+      throw new BadRequestException('IMAP servers must resolve to public IP addresses');
+    }
+  } catch (error) {
+    if (error instanceof BadRequestException) throw error;
+    throw new BadRequestException('Could not resolve IMAP server hostname');
+  }
 }
 
 export interface SafeAccount {
@@ -86,6 +124,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
     const host = dto.host.trim();
     const port = dto.port ?? 993;
     const username = dto.username.trim();
+    await validateImapHost(host);
     if (!host || !username || !dto.password || port < 1 || port > 65535) {
       throw new BadRequestException('Host, username, password and a valid port are required');
     }
