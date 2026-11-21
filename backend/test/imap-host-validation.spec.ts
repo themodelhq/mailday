@@ -1,4 +1,4 @@
-import { isPublicAddress, validateImapHost } from '../src/mail/imap-host-validation';
+import { isPublicAddress, resolveValidatedImapHost, validateImapHost } from '../src/mail/imap-host-validation';
 
 describe('IMAP host validation', () => {
   it.each([
@@ -35,7 +35,7 @@ describe('IMAP host validation', () => {
     await expect(validateImapHost('192.168.1.1')).rejects.toThrow('IMAP servers must resolve to public IP addresses');
   });
 
-  it('rejects malformed host strings', async () => {
+  it('returns a pinned address for IP literals without DNS re-resolution', async () => {\n    await expect(resolveValidatedImapHost('8.8.8.8')).resolves.toMatchObject({\n      originalHost: '8.8.8.8', address: '8.8.8.8', family: 4, servername: false,\n    });\n    await expect(resolveValidatedImapHost('2001:4860:4860::8888')).resolves.toMatchObject({\n      address: '2001:4860:4860::8888', family: 6, servername: false,\n    });\n  });\n\n  it('rejects malformed host strings', async () => {
     await expect(validateImapHost('https://example.com')).rejects.toThrow('Invalid IMAP server hostname');
     await expect(validateImapHost('user@example.com')).rejects.toThrow('Invalid IMAP server hostname');
   });
