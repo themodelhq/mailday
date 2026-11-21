@@ -178,7 +178,7 @@ describe('InboundService failure recovery', () => {
       'Y2hlY2s=',
       '--mailday-boundary--',
       '',
-    ].join('\\r\\n');
+    ].join('\r\n');
 
     await expect(localService.receive('test-token', { rawMime, to: 'user@mailday.app' })).rejects.toThrow('malware detected');
     expect(localScanner.scan).toHaveBeenCalledTimes(1);
