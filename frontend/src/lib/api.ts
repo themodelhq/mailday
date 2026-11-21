@@ -147,7 +147,7 @@ export async function fetchWithAuth<T = unknown>(url: string, init: RequestInit 
     fetch(url, {
       ...init,
       headers: {
-        'Content-Type': 'application/json',
+        ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         ...(init.headers || {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
