@@ -71,6 +71,7 @@ export default function ComposeModal() {
         body: bodyWithSignature(),
         mailbox: 'SENT' as MailboxName,
         idempotencyKey: key,
+        scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       });
     },
     onSuccess: (message) => {
@@ -220,9 +221,12 @@ export default function ComposeModal() {
             <button className="btn-ghost border border-slate-300 dark:border-white/10" onClick={() => saveDraft.mutate()} disabled={saveDraft.isPending}>
               {saveDraft.isPending ? 'Saving…' : 'Save draft'}
             </button>
-            <button className="btn-primary" onClick={() => send.mutate()} disabled={send.isPending || !to}>
-              <Send className="h-4 w-4" /> {send.isPending ? 'Queuing…' : 'Queue send'}
-            </button>
+            <div className="flex flex-col gap-1">
+              <input className="input text-xs" type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} aria-label="Schedule delivery" />
+              <button className="btn-primary" onClick={() => send.mutate()} disabled={send.isPending || !(to || cc || bcc) || (scheduledAt && new Date(scheduledAt) <= new Date())}>
+                <Send className="h-4 w-4" /> {send.isPending ? 'Queuing…' : scheduledAt ? 'Schedule send' : 'Queue send'}
+              </button>
+            </div>
           </div>
           {(autosaveNotice || saveDraft.isPending) && <p className="text-xs text-slate-500">{saveDraft.isPending ? 'Saving draft…' : autosaveNotice}</p>}
           {deliveryNotice && <p className="text-sm text-emerald-600">{deliveryNotice}</p>}
