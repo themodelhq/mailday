@@ -1,6 +1,6 @@
 'use client';
 
-import { Star, Paperclip, Mail } from 'lucide-react';
+import { Star, Paperclip, Mail, AlertCircle, Clock3 } from 'lucide-react';
 import { MessageSummary } from '@/lib/api';
 import { cn, timeAgo } from '@/lib/utils';
 
@@ -61,7 +61,11 @@ export default function MailList({
               <span className={cn('truncate text-sm', !m.isRead ? 'font-semibold' : '')}>{m.from}</span>
               <span className="shrink-0 text-xs text-slate-400">{timeAgo(m.sentAt)}</span>
             </div>
-            <div className="truncate text-sm">{m.subject || '(no subject)'}</div>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="truncate text-sm">{m.subject || '(no subject)'}</div>
+              {m.mailbox === 'SENT' && m.state === 'FAILED' && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-600"><AlertCircle className="h-3 w-3" /> Failed</span>}
+              {m.mailbox === 'SENT' && m.state === 'QUEUED' && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600"><Clock3 className="h-3 w-3" /> Queued</span>}
+            </div>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="truncate">{m.snippet}</span>
               {m.isStarred && <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />}
