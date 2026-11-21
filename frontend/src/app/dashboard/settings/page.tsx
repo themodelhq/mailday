@@ -15,7 +15,8 @@ export default function SettingsPage() {
   const displayName = useAppSelector((s) => s.session.displayName);
 
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('');\n  const [signature, setSignature] = useState('');
+  const [avatar, setAvatar] = useState('');
+  const [signature, setSignature] = useState('');
 
   const [host, setHost] = useState('');
   const [port, setPort] = useState('');
@@ -26,7 +27,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (me) {
       setName(me.displayName);
-      setAvatar(me.avatarUrl ?? '');\n      setSignature(me.signature ?? '');
+      setAvatar(me.avatarUrl ?? '');
+      setSignature(me.signature ?? '');
     }
   }, [me]);
 
@@ -82,6 +84,11 @@ export default function SettingsPage() {
           <div>
             <label className="mb-1 block text-sm font-medium">Avatar URL</label>
             <input className="input" value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="https://…" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Email signature</label>
+            <textarea className="input min-h-[100px]" value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="Regards,&#10;Your name" />
+            <p className="mt-1 text-xs text-slate-500">This signature is appended to outgoing messages when you send.</p>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Email</label>
