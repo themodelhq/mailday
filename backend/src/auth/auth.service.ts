@@ -23,7 +23,7 @@ export class AuthService {
     private readonly redis: RedisService,
   ) {}
 
-  private async issueTokens(userId: string, email: string, username: string, role: string): Promise<TokenPair> {
+  private async issueTokens(userId: string, email: string, username: string, role: string, db: Prisma.TransactionClient | PrismaService = this.prisma): Promise<TokenPair> {
     const jti = uuid();
     const accessToken = this.jwt.sign(
       { sub: userId, email, username, role },
@@ -34,7 +34,7 @@ export class AuthService {
       { secret: this.config.get<string>('JWT_REFRESH_SECRET'), expiresIn: this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d' },
     );
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await this.prisma.refreshToken.create({ data: { userId, token: jti, expiresAt } });
+    await db.refreshToken.create({ data: { userId, token: jti, expiresAt } });
     return { accessToken, refreshToken };
   }
 
@@ -98,10 +98,15 @@ export class AuthService {
       await this.prisma.refreshToken.deleteMany({ where: { userId: payload.sub } });
       throw new UnauthorizedException('Account is unavailable');
     }
-    // Rotation and token issue. Existing token is revoked before new token is created.
-    await this.prisma.refreshToken.delete({ where: { token: payload.jti } });
+    // Atomically consume the old refresh token and create its replacement.
+    // A concurrent request can consume it only once.
+    const tokens = await this.prisma.$transaction(async (tx) => {
+      const consumed = await tx.refreshToken.deleteMany({ where: { token: payload.jti, userId: payload.sub } });
+      if (consumed.count !== 1) throw new UnauthorizedException('Refresh token already used');
+      return this.issueTokens(user.id, user.email, user.username, user.role, tx);
+    });
     await this.redis.invalidatePrefix(`messages:${payload.sub}:`);
-    return this.issueTokens(user.id, user.email, user.username, user.role);
+    return tokens;
   }
 
   async logout(refreshToken: string): Promise<{ success: boolean }> {
