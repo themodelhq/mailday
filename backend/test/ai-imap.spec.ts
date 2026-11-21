@@ -22,7 +22,7 @@ describe('AI + IMAP + Crypto integration', () => {
   it('ImapService pollAll is a safe no-op when there are no connected accounts', async () => {
     const prismaMock: any = { imapAccount: { findMany: jest.fn(async () => []) } };
     const esMock: any = { enabled: false, indexMessage: jest.fn(), updateMessage: jest.fn(), removeMessage: jest.fn() };
-    const redisMock: any = { invalidatePrefix: jest.fn() };
+    const redisMock: any = { invalidatePrefix: jest.fn(), acquireLock: jest.fn(async () => 'test-lock'), releaseLock: jest.fn(async () => undefined) };
     const imap = new ImapService(prismaMock, redisMock, esMock, new CryptoService(noopConfig));
     await expect(imap.pollAll()).resolves.toBeUndefined();
     expect(prismaMock.imapAccount.findMany).toHaveBeenCalled();
