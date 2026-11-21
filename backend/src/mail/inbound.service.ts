@@ -32,7 +32,7 @@ export class InboundService {
     this.checkToken(token);
     if (!payload || (!payload.rawMime && !payload.to)) throw new BadRequestException('Provide rawMime or recipient information');
 
-    const parsed = payload.rawMime ? await simpleParser(Buffer.from(payload.rawMime)) : null;
+    if (payload.rawMime && Buffer.byteLength(payload.rawMime, 'utf8') > 5 * 1024 * 1024) throw new BadRequestException('Inbound MIME payload exceeds 5 MB limit');\n    const parsed = payload.rawMime ? await simpleParser(Buffer.from(payload.rawMime)) : null;
     const recipients = this.normalizeAddresses(payload.to ?? parsed?.to);
     if (!recipients.length) throw new BadRequestException('No recipient address found');
     const provider = (payload.provider ?? 'webhook').slice(0, 64);
