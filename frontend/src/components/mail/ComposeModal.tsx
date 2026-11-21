@@ -22,6 +22,8 @@ export default function ComposeModal() {
   const qc = useQueryClient();
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
   const [body, setBody] = useState('');
   const [tone, setTone] = useState<AiTone>('professional');
   const [aiError, setAiError] = useState('');
@@ -42,6 +44,8 @@ export default function ComposeModal() {
     mutationFn: () =>
       messagesApi.create({
         to: to.split(',').map((s) => s.trim()).filter(Boolean),
+        cc: cc.split(',').map((s) => s.trim()).filter(Boolean),
+        bcc: bcc.split(',').map((s) => s.trim()).filter(Boolean),
         subject,
         body,
         mailbox: 'SENT' as MailboxName,
@@ -52,10 +56,17 @@ export default function ComposeModal() {
       setIdempotencyKey('');
       qc.invalidateQueries({ queryKey: ['messages'] });
       setTo('');
+      setCc('');
+      setBcc('');
       setSubject('');
       setBody('');
       dispatch(closeCompose());
     },
+  });
+
+  const saveDraft = useMutation({
+    mutationFn: () => messagesApi.create({ to: to.split(',').map(s => s.trim()).filter(Boolean), cc: cc.split(',').map(s => s.trim()).filter(Boolean), bcc: bcc.split(',').map(s => s.trim()).filter(Boolean), subject, body, mailbox: 'DRAFT' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['messages'] }); dispatch(closeCompose()); },
   });
 
   const generate = useMutation({
@@ -87,6 +98,8 @@ export default function ComposeModal() {
             value={to}
             onChange={(e) => setTo(e.target.value)}
           />
+          <input className="input" placeholder="CC (comma-separated emails)" value={cc} onChange={(e) => setCc(e.target.value)} />
+          <input className="input" placeholder="BCC (comma-separated emails)" value={bcc} onChange={(e) => setBcc(e.target.value)} />
           <input
             className="input"
             placeholder="Subject"
@@ -128,6 +141,9 @@ export default function ComposeModal() {
                 ))}
               </select>
             </div>
+            <button className="btn-ghost border border-slate-300 dark:border-white/10" onClick={() => saveDraft.mutate()} disabled={saveDraft.isPending}>
+              {saveDraft.isPending ? 'Saving…' : 'Save draft'}
+            </button>
             <button className="btn-primary" onClick={() => send.mutate()} disabled={send.isPending || !to}>
               <Send className="h-4 w-4" /> {send.isPending ? 'Queuing…' : 'Queue send'}
             </button>
