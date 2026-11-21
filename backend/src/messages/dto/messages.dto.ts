@@ -11,9 +11,28 @@ import { Mailbox } from '@prisma/client';
 import { Transform } from 'class-transformer';
 
 export class CreateMessageDto {
+  @IsOptional()
   @IsArray()
   @IsEmail({}, { each: true })
-  to: string[];
+  to?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  cc?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  bcc?: string[];
+
+  @IsOptional()
+  @IsString()
+  threadId?: string;
+
+  @IsOptional()
+  @IsString()
+  inReplyTo?: string;
 
   @IsOptional()
   @IsString()
@@ -44,6 +63,11 @@ export class CreateMessageDto {
 }
 
 export class UpdateMessageDto {
+  @IsOptional() @IsArray() @IsEmail({}, { each: true }) to?: string[];
+  @IsOptional() @IsArray() @IsEmail({}, { each: true }) cc?: string[];
+  @IsOptional() @IsArray() @IsEmail({}, { each: true }) bcc?: string[];
+  @IsOptional() @IsString() subject?: string;
+  @IsOptional() @IsString() body?: string;
   @IsOptional()
   @IsBoolean()
   isRead?: boolean;
