@@ -5,8 +5,18 @@ import { Mailbox, MessageState, UserRole } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction && process.env.SEED_DEMO !== 'true') {
+    throw new Error('Refusing to seed demo accounts in production. Set SEED_DEMO=true explicitly to opt in.');
+  }
+  const demoPassword = process.env.DEMO_USER_PASSWORD ?? (isProduction ? '' : 'demo1234');
+  const adminPassword = process.env.ADMIN_USER_PASSWORD ?? (isProduction ? '' : 'demo1234');
+  if (isProduction && (!demoPassword || !adminPassword || demoPassword.length < 16 || adminPassword.length < 16)) {
+    throw new Error('Production seed requires DEMO_USER_PASSWORD and ADMIN_USER_PASSWORD of at least 16 characters.');
+  }
   const email = 'demo@mailday.app';
-  const passwordHash = await bcrypt.hash('demo1234', 12);
+  const passwordHash = await bcrypt.hash(demoPassword, 12);
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
 
   const user = await prisma.user.upsert({
     where: { email },
@@ -26,7 +36,7 @@ async function main() {
     create: {
       email: 'admin@mailday.app',
       username: 'admin',
-      passwordHash,
+      passwordHash: adminPasswordHash,
       displayName: 'MailDay Admin',
       role: UserRole.ADMIN,
     },
@@ -137,8 +147,8 @@ async function main() {
     });
   }
 
-  console.log(`Seeded demo user ${email} / demo1234 with ${samples.length} messages.`);
-  console.log(`Seeded admin user admin@mailday.app / demo1234 (role: ADMIN).`);
+  console.log(`Seeded demo user ${email} with ${samples.length} sample messages.`);
+  console.log('Seeded admin account. Credentials were provided via environment or local development defaults.');
 }
 
 main()
