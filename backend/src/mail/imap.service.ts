@@ -40,7 +40,7 @@ function isPublicAddress(address: string): boolean {
     return !(a === 0 || a === 10 || a === 127 || a >= 224 ||
       (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
       (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) ||
-      (a === 192 && b === 0) || (a === 198 && (b === 18 || b === 19)) ||
+      (a === 192 && (b === 0 || b === 2)) || (a === 198 && (b === 18 || b === 19 || b === 51 && octets[2] === 100)) || (a === 203 && b === 0 && octets[2] === 113) ||
       (a === 192 && b === 88 && octets[2] === 99);
   }
   if (version === 6) {
@@ -238,6 +238,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async pollAccount(account: ImapAccount) {
+    await validateImapHost(account.host);
     const password = this.crypto.decrypt(account.passwordEnc);
     const client = new ImapFlow({
       host: account.host,
