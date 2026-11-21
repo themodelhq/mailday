@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Star, Archive, Trash2, Reply, Loader2, Sparkles, FileText, Copy, X } from 'lucide-react';
+import { Star, Archive, Trash2, Reply, Loader2, Sparkles, FileText, Copy, X, Pencil } from 'lucide-react';
 import { messagesApi, Message, aiApi, AiMode } from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
 import { useAppDispatch } from '@/hooks';
@@ -94,6 +94,7 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
           <button className="btn-ghost h-9 w-9 !px-0" onClick={() => trash.mutate()} title="Move to trash">
             <Trash2 className="h-4 w-4" />
           </button>
+          {m.mailbox === 'DRAFT' && <button className="btn-primary" title="Edit draft" onClick={() => dispatch(openComposeWith({ to: m.to.join(', '), cc: m.cc.join(', '), bcc: m.bcc.join(', '), subject: m.subject, body: m.body, draftId: m.id }))}><Pencil className="h-4 w-4" /> Edit draft</button>}
           <button className="btn-primary" title="Reply" onClick={() => dispatch(openComposeWith({ to: m.from, subject: `Re: ${m.subject}`, body: '', threadId: m.threadId ?? m.id, inReplyTo: m.id }))}>
             <Reply className="h-4 w-4" /> Reply
           </button>
