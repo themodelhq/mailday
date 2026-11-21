@@ -57,8 +57,8 @@ export class InboundService {
     const recipients = this.normalizeAddresses(payload.to ?? parsed?.to);
     if (!recipients.length) throw new BadRequestException('No recipient address found');
     if (recipients.length > 50) throw new BadRequestException('Inbound message exceeds the 50-recipient limit');
-    const provider = (payload.provider ?? 'webhook').trim().replace(/[\\u0000-\\u001f\\u007f]/g, '').slice(0, 64) || 'webhook';
-    const providerMessageId = (payload.messageId ?? parsed?.messageId ?? createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex')).trim().replace(/[\\u0000-\\u001f\\u007f]/g, '').slice(0, 255) || createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex').slice(0, 64);
+    const provider = (payload.provider ?? 'webhook').trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 64) || 'webhook';
+    const providerMessageId = (payload.messageId ?? parsed?.messageId ?? createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex')).trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 255) || createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex').slice(0, 64);
 
     const from = this.normalizeAddresses(payload.from ?? parsed?.from)[0] ?? 'unknown@unknown';
     const subject = payload.subject ?? parsed?.subject ?? '';
@@ -107,7 +107,7 @@ export class InboundService {
         for (let index = 0; index < attachments.length; index++) {
           const attachment = attachments[index];
           const storageName = randomUUID();
-          const originalName = (attachment.filename || 'attachment').replace(/[\\/\\\\]/g, '_').replace(/[\\u0000-\\u001f\\u007f]/g, '_').trim().slice(0, 255) || 'attachment';
+          const originalName = (attachment.filename || 'attachment').replace(/[\\/\\\\]/g, '_').replace(/[\u0000-\u001f\u007f]/g, '_').trim().slice(0, 255) || 'attachment';
           await mkdir(this.storageDir, { recursive: true });
           await writeFile(join(this.storageDir, storageName), attachment.content, { flag: 'wx' });
           writtenFiles.push(storageName);
