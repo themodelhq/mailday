@@ -98,6 +98,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
       ...(validatedHost.servername ? { servername: validatedHost.servername } : {}),
       port,
       secure: dto.secure ?? true,
+      doSTARTTLS: (dto.secure ?? true) ? undefined : true,
       auth: { user: username, pass: dto.password },
       logger: false,
     });
@@ -209,6 +210,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
       ...(validatedHost.servername ? { servername: validatedHost.servername } : {}),
       port: account.port,
       secure: account.secure,
+      doSTARTTLS: account.secure ? undefined : true,
       auth: { user: account.username, pass: password },
     });
 
