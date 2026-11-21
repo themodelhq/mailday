@@ -22,9 +22,9 @@
   - `GET /users/me`, `PATCH /users/me`
   - `GET /messages`, `GET /messages/:id`, `POST /messages`, `PATCH /messages/:id`, `DELETE /messages/:id`
   - **Hybrid search** — Elasticsearch when `ELASTICSEARCH_URL` is set (keyword `multi_match` + semantic kNN when embeddings are enabled); automatically degrades to Prisma `ILIKE` otherwise.
-  - **Real SMTP delivery** — Nodemailer sends outbound mail on `POST /messages` when `SMTP_*` is configured; runs in demo mode (local-only) otherwise.
+  - **SMTP integration** — Nodemailer can send outbound messages when `SMTP_*` is configured. The API now rejects sends when SMTP is unavailable or the provider rejects the message instead of falsely recording a successful Sent message.
   - **AI generation** — `POST /ai/generate` (modes: `draft`/`reply`/`summarize`/`rewrite`, with tone) via a **z.ai (Zhipu AI)** OpenAI-compatible Chat Completions API; returns HTTP 503 when `ZAI_API_KEY` is unset.
-  - **Inbound mail (IMAP)** — `POST/GET/DELETE /mail/imap` to connect/list/remove per-user accounts, `POST /mail/imap/:id/sync` for on-demand import, plus a background poller that imports new messages into the user's inbox. IMAP passwords are encrypted at rest (AES-256-GCM, `VAULT_SECRET`).
+  - **External IMAP account import** — `POST/GET/DELETE /mail/imap` to connect/list/remove accounts, `POST /mail/imap/:id/sync` for on-demand import, plus a background poller. Account credentials are tested before storage and encrypted at rest (AES-256-GCM, `VAULT_SECRET`). This is not yet native Mailday inbound mail.
   - **Admin API** — `GET /admin/stats|users|messages`, `PATCH /admin/users/:id`, `DELETE /admin/users/:id`, protected by a role-aware `AdminGuard`.
   - RBAC-ready `JwtAuthGuard` + `AdminGuard`, DTO validation, global exception filter
   - Redis caching layer for message lists
