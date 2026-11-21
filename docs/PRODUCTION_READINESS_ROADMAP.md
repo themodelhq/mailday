@@ -43,10 +43,10 @@ Audit AI endpoint validation, prompt/data boundaries, provider failures/timeouts
 ### Stage 39 — Monitoring, admin operations, and incident readiness — VERIFIED
 Audit health/readiness, structured logs and request IDs, delivery metrics/admin monitoring, alerts, sensitive-data redaction, and operational runbook completeness. Implement missing actionable safeguards.
 
-### Stage 40 — Deployment, storage, backup, and recovery verification — IN PROGRESS
-Audit Netlify/Render configuration, environment validation, migration safety, persistent attachment storage, database backup and restore instructions, startup/shutdown, and deployment smoke checks. Add automated checks where feasible.
+### Stage 40 — Deployment, storage, backup, and recovery verification — VERIFIED
+Audit Netlify/Render configuration, environment validation, migration safety, persistent attachment storage, database backup and restore instructions, startup/shutdown, and deployment smoke checks. Add automated checks where feasible. Verified: Render migrations now run at service startup (not build), attachment storage is configured on the persistent disk, backup/restore runbook added, deployment config regression tests added, README deployment instructions corrected.
 
-### Stage 41 — End-to-end release validation and final production checklist
+### Stage 41 — End-to-end release validation and final production checklist — IN PROGRESS
 Run the full CI suite, review dependency/security audit findings, validate critical user journeys with automated tests where feasible, review remaining external-provider prerequisites, update documentation, and publish a final readiness report. No known critical/high application defects may remain unresolved; external setup limitations must be clearly listed.
 
 ## Stage completion gate
