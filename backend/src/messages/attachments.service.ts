@@ -13,10 +13,19 @@ export class AttachmentsService {
 
   constructor(private prisma: PrismaService, private scanner: AttachmentScanner) {}
 
+  private safeStoragePath(storageName: string) {
+    // Storage keys are generated UUIDs, never user-controlled paths.
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(storageName)) {
+      throw new BadRequestException('Invalid attachment storage reference');
+    }
+    return join(this.storageDir, storageName);
+  }
+
   async upload(ownerId: string, messageId: string, file: AttachmentUploadFile) {
     const message = await this.prisma.message.findFirst({ where: { id: messageId, ownerId } });
     if (!message) throw new NotFoundException('Message not found');
-    if (!file || !file.buffer) throw new BadRequestException('No file uploaded');
+    if (!file || !Buffer.isBuffer(file.buffer)) throw new BadRequestException('No file uploaded');
+    if (file.buffer.length > 20 * 1024 * 1024) throw new BadRequestException('Attachment exceeds the 20 MB limit');
 
     const scanStatus = await this.scanner.scan(file.buffer);
     if (scanStatus === 'INFECTED') throw new BadRequestException('Attachment rejected: malware detected');
@@ -31,7 +40,8 @@ export class AttachmentsService {
       : 'application/octet-stream';
 
     await mkdir(this.storageDir, { recursive: true });
-    await writeFile(join(this.storageDir, storageName), file.buffer, { flag: 'wx' });
+    const storagePath = this.safeStoragePath(storageName);
+    await writeFile(storagePath, file.buffer, { flag: 'wx' });
     try {
       const attachment = await this.prisma.attachment.create({ data: {
         messageId,
@@ -44,7 +54,7 @@ export class AttachmentsService {
       await this.prisma.message.update({ where: { id: messageId }, data: { hasAttachments: true } });
       return attachment;
     } catch (error) {
-      await unlink(join(this.storageDir, storageName)).catch(() => undefined);
+      await unlink(storagePath).catch(() => undefined);
       throw error;
     }
   }
@@ -59,7 +69,7 @@ export class AttachmentsService {
     const attachment = await this.prisma.attachment.findFirst({ where: { id: attachmentId, message: { ownerId } } });
     if (!attachment) throw new NotFoundException('Attachment not found');
     if (attachment.scanStatus === 'INFECTED') throw new BadRequestException('This attachment was flagged as malware and cannot be downloaded');
-    const data = await readFile(join(this.storageDir, attachment.storageName));
+    const data = await readFile(this.safeStoragePath(attachment.storageName));
     return { attachment, data };
   }
 
@@ -67,7 +77,7 @@ export class AttachmentsService {
     const attachment = await this.prisma.attachment.findFirst({ where: { id: attachmentId, message: { ownerId } } });
     if (!attachment) throw new NotFoundException('Attachment not found');
     await this.prisma.attachment.delete({ where: { id: attachmentId } });
-    await unlink(join(this.storageDir, attachment.storageName)).catch(() => undefined);
+    await unlink(this.safeStoragePath(attachment.storageName)).catch(() => undefined);
     const remaining = await this.prisma.attachment.count({ where: { messageId: attachment.messageId } });
     if (!remaining) await this.prisma.message.update({ where: { id: attachment.messageId }, data: { hasAttachments: false } });
     return { success: true };
