@@ -146,3 +146,20 @@ Outbound messages are now persisted before delivery. When SMTP is configured, se
 Delivery status is available to the authenticated message owner at `GET /api/messages/:id/delivery`. Configure `SMTP_HOST` and related `SMTP_*` variables before sending. Worker settings: `OUTBOUND_WORKER_ENABLED=true` and `OUTBOUND_WORKER_POLL_MS=5000`.
 
 **Operational note:** SMTP acceptance is not proof that the recipient's mailbox received the email. Bounce/webhook ingestion and provider-specific delivery events are not yet implemented. The queue also cannot guarantee exactly-once delivery if an SMTP server accepts a message and the database update fails immediately afterward; this is a distributed-systems edge case that can result in a retry duplicate.
+
+### Native inbound webhook (Phase 3 foundation)
+
+Mailday now exposes an authenticated inbound gateway endpoint: `POST /api/mail/inbound/webhook`. Configure `INBOUND_WEBHOOK_TOKEN` (Render Blueprint generates one) and have your inbound-email provider post a JSON payload with header `X-Mailday-Inbound-Token`. The endpoint accepts either `rawMime` (RFC 822/MIME text) or parsed fields such as `provider`, `messageId`, `from`, `to`, `subject`, `text`, and `html`. Raw MIME payloads are limited to 5 MB at the service layer.
+
+The receiver parses MIME, routes to active users by their registered email address, creates inbox messages, records inbound receipts for idempotency, retries previously failed receipt processing on duplicate delivery, and invalidates mailbox caches. Unroutable recipients are reported rather than silently dropped. Search indexing failures do not fail receipt processing.
+
+Example:
+
+```bash
+curl -X POST https://YOUR-MAILDAY-API/api/mail/inbound/webhook \\
+  -H 'Content-Type: application/json' \\
+  -H 'X-Mailday-Inbound-Token: YOUR_INBOUND_WEBHOOK_TOKEN' \\
+  -d '{"provider":"provider-name","messageId":"provider-id-123","from":"sender@example.com","to":"user@example.com","subject":"Hello","text":"Message body"}'
+```
+
+**Current limitations:** this is a provider-neutral webhook receiver, not an MX server. DNS/MX records and an inbound email provider must be configured externally. Native Mailday addresses and domain routing are not yet provisioned. Attachments are detected and flagged but their binary data is not yet persisted. HTML email sanitization and attachment storage/virus scanning are still part of later phases.
