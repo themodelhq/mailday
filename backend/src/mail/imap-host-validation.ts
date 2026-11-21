@@ -19,10 +19,15 @@ export function isPublicAddress(address: string): boolean {
   if (version === 6) {
     const normalized = address.toLowerCase();
     const inGlobalUnicast = normalized.startsWith('2') || normalized.startsWith('3');
-    const excludedPrefixes = [
-      '2001:', '2002:', '3fff:',
-    ];
-    return inGlobalUnicast && !excludedPrefixes.some((prefix) => normalized.startsWith(prefix));
+    const segments = normalized.split(':');
+    const first = parseInt(segments[0] || '0', 16);
+    const second = parseInt(segments[1] || '0', 16);
+    const excluded2001 = first === 0x2001 && (
+      second <= 0x01ff || second === 0x0002 ||
+      (second >= 0x0010 && second <= 0x002f) || second === 0x0db8
+    );
+    const excludedPrefixes = ['2002:', '3fff:'];
+    return inGlobalUnicast && !excluded2001 && !excludedPrefixes.some((prefix) => normalized.startsWith(prefix));
   }
   return false;
 }
