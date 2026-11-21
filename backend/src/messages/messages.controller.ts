@@ -65,6 +65,12 @@ export class MessagesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post(':id/send')
+  sendDraft(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { idempotencyKey?: string }) {
+    return this.messages.sendDraft(user, id, body?.idempotencyKey);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.messages.remove(user, id);
