@@ -92,3 +92,36 @@ model ImapAccount {
 
   @@index([userId])
 }
+
+
+enum OutboundStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  RETRYING
+  FAILED
+}
+
+model OutboundDelivery {
+  id             String         @id @default(uuid())
+  ownerId         String
+  owner           User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  messageId       String          @unique
+  message          Message         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  status          OutboundStatus  @default(QUEUED)
+  attempts        Int             @default(0)
+  maxAttempts     Int             @default(8)
+  nextAttemptAt  DateTime         @default(now())
+  lockedAt       DateTime?
+  provider        String          @default("smtp")
+  providerMessageId String?
+  lastError      String?
+  idempotencyKey String?          @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sentAt          DateTime?
+  failedAt        DateTime?
+
+  @@index([status, nextAttemptAt])
+  @@index([ownerId, createdAt])
+}
