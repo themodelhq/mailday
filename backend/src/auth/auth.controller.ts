@@ -2,8 +2,10 @@ import { Body, Controller, Post, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, RefreshDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { AuthRateLimitGuard } from './auth-rate-limit.guard';
 
 @Controller('auth')
+@UseGuards(AuthRateLimitGuard)
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
