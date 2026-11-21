@@ -35,10 +35,16 @@ export class BounceService {
     if (payload.reason !== undefined && typeof payload.reason !== 'string') throw new BadRequestException('reason must be a string');
     if (payload.reason && payload.reason.length > 2000) throw new BadRequestException('reason exceeds 2000 characters');
     if (payload.bouncedAt !== undefined && typeof payload.bouncedAt !== 'string') throw new BadRequestException('bouncedAt must be a string');
+    if (payload.provider.length > 256) throw new BadRequestException('provider exceeds 256 characters');
+    if (payload.eventId.length > 255) throw new BadRequestException('eventId exceeds 255 characters');
+    if (payload.messageId.length > 500) throw new BadRequestException('messageId exceeds 500 characters');
+    if (payload.recipient.length > 320) throw new BadRequestException('recipient exceeds 320 characters');
+    if (payload.bouncedAt && Number.isNaN(Date.parse(payload.bouncedAt))) throw new BadRequestException('bouncedAt must be a valid timestamp');
     const provider = payload.provider.trim().slice(0, 100);
     const eventId = payload.eventId.trim().slice(0, 255);
     const messageId = payload.messageId.trim();
     const recipient = payload.recipient.trim().toLowerCase();
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(recipient)) throw new BadRequestException('recipient must be a valid email address');
 
     const duplicate = await this.prisma.outboundDeliveryEvent.findFirst({
       where: { provider, providerEventId: eventId },
@@ -57,8 +63,7 @@ export class BounceService {
       .map((address) => address.trim().toLowerCase());
     if (!recipients.includes(recipient)) throw new BadRequestException('Bounce recipient does not match delivery recipients');
 
-    const occurredAt = payload.bouncedAt && !Number.isNaN(Date.parse(payload.bouncedAt))
-      ? new Date(payload.bouncedAt) : new Date();
+    const occurredAt = payload.bouncedAt ? new Date(payload.bouncedAt) : new Date();
 
     try {
       await this.prisma.$transaction(async (tx) => {
