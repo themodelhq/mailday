@@ -43,8 +43,17 @@ export class InboundService {
     const subject = payload.subject ?? parsed?.subject ?? '';
     const html = payload.html ?? (parsed?.html ? String(parsed.html) : '');
     const text = payload.text ?? parsed?.text ?? '';
-    // Store plain text for inbound messages until a proven HTML sanitizer is integrated.\n    const body = text || html.replace(/<\\s*(script|style)[^>]*>[\\s\\S]*?<\\/\\s*\\1\\s*>/gi, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>') || '';
-    const snippet = String(text || body.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').slice(0, 160);
+    // Store plain text for inbound messages until a proven HTML sanitizer is integrated.
+    const body = String(text || html)
+      .replace(/<\\s*(script|style)[^>]*>[\\s\\S]*?<\\/\\s*\\1\\s*>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, ' ')
+      .replace(/\\s+/g, ' ')
+      .trim();
+    const snippet = body.slice(0, 160);
     const attachments = parsed?.attachments ?? [];
     const results: Array<{ recipient: string; status: string }> = [];
 
