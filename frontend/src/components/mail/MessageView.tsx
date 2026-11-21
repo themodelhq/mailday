@@ -23,6 +23,8 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
     queryFn: () => messagesApi.get(id),
   });
 
+  const { data: threadMessages = [] } = useQuery({ queryKey: ['thread', data?.threadId], queryFn: () => messagesApi.thread(data!.threadId!), enabled: Boolean(data?.threadId), staleTime: 30_000 });
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['message', id] });
     qc.invalidateQueries({ queryKey: ['messages'] });
@@ -73,7 +75,6 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
   }
 
   const m = data as Message;
-  const { data: threadMessages = [] } = useQuery({ queryKey: ['thread', m.threadId], queryFn: () => messagesApi.thread(m.threadId!), enabled: Boolean(m.threadId), staleTime: 30_000 });
 
   return (
     <div className="flex h-full flex-col">
