@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Send, Sparkles, Loader2 } from 'lucide-react';
-import { messagesApi, aiApi, AiTone } from '@/lib/api';
+import { messagesApi, aiApi, AiTone, usersApi } from '@/lib/api';
 import { useAppDispatch, useAppSelector } from '@/hooks';
 import { closeCompose, clearComposeDraft } from '@/features/ui/uiSlice';
 import { MailboxName } from '@/lib/api';
@@ -19,7 +19,7 @@ export default function ComposeModal() {
   const open = useAppSelector((s) => s.ui.composeOpen);
   const draft = useAppSelector((s) => s.ui.composeDraft);
   const dispatch = useAppDispatch();
-  const qc = useQueryClient();
+  const qc = useQueryClient();\n  const { data: profile } = useQuery({ queryKey: ['me'], queryFn: usersApi.me });
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [cc, setCc] = useState('');
@@ -52,7 +52,7 @@ export default function ComposeModal() {
     }
   }, [open, draft, dispatch]);
 
-  const send = useMutation({
+  const bodyWithSignature = () => { const sig = profile?.signature?.trim(); return sig && !body.includes(sig) ? `${body.trim()}\\n\\n${sig}` : body; };\n\n  const send = useMutation({
     mutationFn: async () => {
       const key = idempotencyKey || crypto.randomUUID();
       if (draftId) {
