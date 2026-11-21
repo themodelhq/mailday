@@ -31,6 +31,12 @@ export class MessagesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get(':id/delivery')
+  delivery(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.messages.getDeliveryStatus(user, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   get(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.messages.getById(user, id);
