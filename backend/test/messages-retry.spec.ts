@@ -15,6 +15,7 @@ describe('MessagesService manual delivery retry', () => {
         findUnique: jest.fn(async () => queued),
       },
       message: { update: jest.fn(async () => ({ id: 'message-1', state: 'QUEUED' })) },
+      outboundDeliveryEvent: { create: jest.fn(async () => ({ id: 'event-1' })) },
     };
     const prisma: any = {
       outboundDelivery: { findFirst: jest.fn(async () => failed) },
@@ -30,6 +31,7 @@ describe('MessagesService manual delivery retry', () => {
       data: expect.objectContaining({ status: 'QUEUED', attempts: 0, lastError: null, failedAt: null }),
     }));
     expect(tx.message.update).toHaveBeenCalledWith({ where: { id: 'message-1' }, data: { state: 'QUEUED' } });
+    expect(tx.outboundDeliveryEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ deliveryId: 'delivery-1', eventType: 'QUEUED', detail: 'Manual retry requested; attempts reset' }) });
     expect(result).toEqual(queued);
     expect(redis.invalidatePrefix).toHaveBeenCalledWith('messages:user-1:');
   });
