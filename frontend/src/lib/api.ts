@@ -208,7 +208,7 @@ export const authApi = {
 
 export const usersApi = {
   me: () => fetchWithAuth<UserProfile>(`${api}/users/me`),
-  update: (body: { displayName?: string; avatarUrl?: string }) =>
+  update: (body: { displayName?: string; avatarUrl?: string; signature?: string }) =>
     fetchWithAuth<UserProfile>(`${api}/users/me`, { method: 'PATCH', body: JSON.stringify(body) }),
 };
 
