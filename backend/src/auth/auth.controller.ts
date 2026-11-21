@@ -25,6 +25,12 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('logout-all')
+  logoutAll(@Req() req: { user: { id: string } }) {
+    return this.auth.logoutAll(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('logout')
   logout(@Req() req: { body: { refreshToken?: string }; headers: { authorization?: string } }) {
     const accessToken = req.headers.authorization?.startsWith('Bearer ')
