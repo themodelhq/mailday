@@ -7,7 +7,7 @@ describe('IMAP host validation', () => {
     ['100.64.0.1', false], ['192.0.2.10', false], ['192.0.0.5', false],
     ['198.51.100.5', false], ['203.0.113.10', false], ['224.0.0.1', false],
     ['8.8.8.8', true], ['1.1.1.1', true], ['2001:4860:4860::8888', true],
-    ['2001:db8::1', false], ['2001:0::1', false], ['2002::1', false],
+    ['2001:db8::1', false], ['2001:0::1', false], ['2001:0000::1', false], ['2001:0001::1', false], ['2002::1', false],
     ['3fff::1', false], ['fe80::1', false], ['fc00::1', false],
     ['::1', false], ['::ffff:127.0.0.1', false],
   ])('classifies %s as public=%s', (address, expected) => {
