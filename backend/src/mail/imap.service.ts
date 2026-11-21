@@ -201,7 +201,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async pollAccount(account: ImapAccount) {
-    await validateImapHost(account.host);
+    const validatedHost = await resolveValidatedImapHost(account.host);
     const password = this.crypto.decrypt(account.passwordEnc);
     const client = new ImapFlow({
       host: account.host,
