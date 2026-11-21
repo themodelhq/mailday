@@ -22,20 +22,24 @@ export default function Topbar({
   const qc = useQueryClient();
   const displayName = useAppSelector((s) => s.session.displayName);
   const initial = (displayName ?? 'U').charAt(0).toUpperCase();
-
   const [search, setSearch] = useState(sp.get('search') ?? '');
 
   useEffect(() => {
     setSearch(sp.get('search') ?? '');
   }, [sp]);
 
-  function updateSearch(value: string) {
-    setSearch(value);
-    const params = new URLSearchParams(sp.toString());
-    if (value) params.set('search', value);
-    else params.delete('search');
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(sp.toString());
+      const trimmed = search.trim();
+      if (trimmed) params.set('search', trimmed);
+      else params.delete('search');
+      params.set('page', '1');
+      const next = params.toString();
+      if (next !== sp.toString()) router.replace(`${pathname}?${next}`, { scroll: false });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search, sp, pathname, router]);
 
   return (
     <header className="flex items-center gap-3 border-b border-slate-200/70 px-4 py-3 dark:border-white/10">
@@ -45,8 +49,10 @@ export default function Topbar({
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           value={search}
-          onChange={(e) => updateSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search mail…"
+          aria-label="Search mail"
+          maxLength={200}
           className="input pl-9"
         />
       </div>
