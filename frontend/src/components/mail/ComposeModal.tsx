@@ -228,7 +228,7 @@ export default function ComposeModal() {
             </button>
             <div className="flex flex-col gap-1">
               <input className="input text-xs" type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} aria-label="Schedule delivery" />
-              <button className="btn-primary" onClick={() => send.mutate()} disabled={send.isPending || !(to || cc || bcc) || (scheduledAt && new Date(scheduledAt) <= new Date())}>
+              <button className="btn-primary" onClick={() => send.mutate()} disabled={send.isPending || !(to || cc || bcc) || Boolean(scheduledAt && new Date(scheduledAt) <= new Date())}>
                 <Send className="h-4 w-4" /> {send.isPending ? 'Queuing…' : scheduledAt ? 'Schedule send' : 'Queue send'}
               </button>
             </div>
