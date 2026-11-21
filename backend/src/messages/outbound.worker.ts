@@ -59,12 +59,13 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
         return;
       }
       const attempts = delivery.attempts + 1;
-      const terminal = attempts >= delivery.maxAttempts;
+      const terminal = result.retryable === false || attempts >= delivery.maxAttempts;
       const delay = Math.min(3600, Math.pow(2, attempts) * 30);
       await this.prisma.$transaction([
-        this.prisma.outboundDelivery.update({ where: { id }, data: { status: terminal ? 'FAILED' : 'RETRYING', lastError: result.error ?? 'Delivery failed', nextAttemptAt: new Date(Date.now() + delay * 1000), failedAt: terminal ? new Date() : null, lockedAt: null } }),
+        this.prisma.outboundDelivery.update({ where: { id }, data: { status: terminal ? 'FAILED' : 'RETRYING', lastError: result.error ?? 'Delivery failed', nextAttemptAt: terminal ? new Date() : new Date(Date.now() + delay * 1000), failedAt: terminal ? new Date() : null, lockedAt: null } }),
         this.prisma.message.update({ where: { id: delivery.messageId }, data: { state: terminal ? 'FAILED' : 'QUEUED' } }),
       ]);
+      if (terminal && result.retryable === false) this.logger.warn(`Delivery ${id} failed permanently (${result.errorCode ?? 'unknown code'})`);
     } catch (e) {
       const delivery = await this.prisma.outboundDelivery.findUnique({ where: { id } });
       if (delivery) {
