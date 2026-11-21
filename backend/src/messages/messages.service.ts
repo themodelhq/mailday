@@ -108,7 +108,8 @@ export class MessagesService {
     const mailbox = dto.mailbox ?? Mailbox.INBOX;
     const isOutbound = mailbox === Mailbox.SENT;
     const isDraft = mailbox === Mailbox.DRAFT;
-    if (isOutbound && !(dto.to?.length || dto.cc?.length || dto.bcc?.length)) throw new BadRequestException('At least one recipient is required');\n    if (dto.scheduledAt && new Date(dto.scheduledAt) <= new Date()) throw new BadRequestException('Scheduled send time must be in the future');
+    if (isOutbound && !(dto.to?.length || dto.cc?.length || dto.bcc?.length)) throw new BadRequestException('At least one recipient is required');
+    if (dto.scheduledAt && new Date(dto.scheduledAt) <= new Date()) throw new BadRequestException('Scheduled send time must be in the future');
 
     if (isOutbound && !this.mail.enabled) {
       throw new ServiceUnavailableException('Outbound email is not configured. Your message was not queued.');
