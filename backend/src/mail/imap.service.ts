@@ -212,11 +212,17 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
       secure: account.secure,
       doSTARTTLS: account.secure ? undefined : true,
       auth: { user: account.username, pass: password },
+      logger: false,
     });
+    const accountLockKey = `mailday:imap-account:${account.id}`;
+    let accountLockToken: string | null = null;
+    let mailboxLock: ReturnType<typeof client.getMailboxLock> | undefined;
 
     try {
+      accountLockToken = await this.redis.acquireLock(accountLockKey, 600);
+      if (!accountLockToken) return; // Another worker/manual sync currently owns this account.
       await client.connect();
-      const lock = await client.getMailboxLock('INBOX');
+      mailboxLock = await client.getMailboxLock('INBOX');
       try {
         const uids = (await client.search({ seen: false }, { uid: true })) as number[];
         for (const uid of uids) {
@@ -246,7 +252,8 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
           }
         }
       } finally {
-        lock.release();
+        mailboxLock.release();
+        mailboxLock = undefined;
       }
       await client.logout();
       if (account.lastError) {
@@ -261,6 +268,16 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
         .update({ where: { id: account.id }, data: { lastError: message.slice(0, 200) } })
         .catch(() => undefined);
       throw e;
+    } finally {
+      if (mailboxLock) {
+        try { mailboxLock.release(); } catch { /* best-effort lock cleanup */ }
+      }
+      try { client.close(); } catch { /* best-effort socket cleanup */ }
+      if (accountLockToken) {
+        await this.redis.releaseLock(accountLockKey, accountLockToken).catch((e) =>
+          this.logger.warn(`Unable to release IMAP account lock: ${(e as Error).message}`),
+        );
+      }
     }
   }
 
