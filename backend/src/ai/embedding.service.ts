@@ -1,11 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/**
- * Embedding provider. Uses z.ai (Zhipu AI) OpenAI-compatible embeddings when
- * ZAI_API_KEY is set. Returns null when embeddings are disabled so callers fall
- * back to keyword search. Swap the implementation here for another provider.
- */
 @Injectable()
 export class EmbeddingService {
   private readonly logger = new Logger('Embedding');
@@ -13,6 +8,7 @@ export class EmbeddingService {
   private readonly baseUrl: string;
   private readonly key?: string;
   readonly enabled: boolean;
+  private readonly timeoutMs = 15000;
 
   constructor(config: ConfigService) {
     this.key = config.get<string>('ZAI_API_KEY') ?? config.get<string>('OPENAI_API_KEY');
@@ -22,21 +18,27 @@ export class EmbeddingService {
   }
 
   async embed(text: string): Promise<number[] | null> {
-    if (!this.enabled || !this.key) return null;
+    if (!this.enabled || !this.key || typeof text !== 'string' || !text.trim()) return null;
     try {
       const res = await fetch(this.baseUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.key}` },
         body: JSON.stringify({ input: text.slice(0, 8000), model: this.model }),
+        signal: AbortSignal.timeout(this.timeoutMs),
       });
       if (!res.ok) {
-        this.logger.warn(`embedding failed (${res.status})`);
+        this.logger.warn(`embedding provider failed with HTTP ${res.status}`);
         return null;
       }
-      const json = (await res.json()) as { data?: { embedding?: number[] }[] };
-      return json?.data?.[0]?.embedding ?? null;
+      const json = await res.json() as { data?: { embedding?: unknown }[] };
+      const embedding = json?.data?.[0]?.embedding;
+      if (!Array.isArray(embedding) || embedding.length === 0 || !embedding.every(v => typeof v === 'number' && Number.isFinite(v))) {
+        this.logger.warn('embedding provider returned an invalid vector');
+        return null;
+      }
+      return embedding as number[];
     } catch (e) {
-      this.logger.warn(`embedding error: ${(e as Error).message}`);
+      this.logger.warn(`embedding provider request failed (${(e as Error).name || 'unknown error'})`);
       return null;
     }
   }
