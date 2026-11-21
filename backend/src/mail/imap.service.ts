@@ -100,7 +100,7 @@ export class ImapService implements OnModuleInit, OnModuleDestroy {
       await probe.connect();
       await probe.logout();
     } catch {
-      await probe.close().catch(() => undefined);
+      try { probe.close(); } catch { /* best-effort cleanup */ }
       throw new BadRequestException('Could not connect to this IMAP account. Check the server, port, security and credentials.');
     }
 
