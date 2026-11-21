@@ -31,6 +31,12 @@ export class MessagesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('thread/:threadId')
+  thread(@CurrentUser() user: AuthUser, @Param('threadId') threadId: string) {
+    return this.messages.getThread(user, threadId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id/delivery')
   delivery(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.messages.getDeliveryStatus(user, id);
