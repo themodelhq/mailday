@@ -1,0 +1,40 @@
+name: Dependency Security Audit
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "backend/package.json"
+      - "backend/package-lock.json"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.directory }}/package-lock.json
+      - name: Install locked dependencies
+        working-directory: ${{ matrix.directory }}
+        run: npm ci
+      - name: Generate npm audit report
+        working-directory: ${{ matrix.directory }}
+        run: npm audit --json > npm-audit.json || true
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-${{ matrix.directory }}
+          path: ${{ matrix.directory }}/npm-audit.json
+          retention-days: 30
