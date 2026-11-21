@@ -44,7 +44,7 @@ export class BounceService {
     const eventId = payload.eventId.trim().slice(0, 255);
     const messageId = payload.messageId.trim();
     const recipient = payload.recipient.trim().toLowerCase();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(recipient)) throw new BadRequestException('recipient must be a valid email address');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) throw new BadRequestException('recipient must be a valid email address');
 
     const duplicate = await this.prisma.outboundDeliveryEvent.findFirst({
       where: { provider, providerEventId: eventId },
