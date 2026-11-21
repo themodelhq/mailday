@@ -48,12 +48,17 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
     try {
       const delivery = await this.prisma.outboundDelivery.findUnique({ where: { id }, include: { message: { include: { attachments: true } } } });
       if (!delivery || !['QUEUED', 'RETRYING'].includes(delivery.status) || delivery.nextAttemptAt > new Date()) return;
-      await this.prisma.outboundDelivery.update({ where: { id }, data: { status: 'PROCESSING', lockedAt: new Date(), attempts: { increment: 1 } } });
+      const processingAt = new Date();
+      await this.prisma.$transaction([
+        this.prisma.outboundDelivery.update({ where: { id }, data: { status: 'PROCESSING', lockedAt: processingAt, attempts: { increment: 1 } } }),
+        this.prisma.outboundDeliveryEvent.create({ data: { deliveryId: id, eventType: 'PROCESSING', provider: delivery.provider, detail: `Attempt ${delivery.attempts + 1} started`, occurredAt: processingAt } }),
+      ]);
       const result = await this.mail.send(delivery.message.to, delivery.message.subject, delivery.message.body, delivery.message.cc, delivery.message.bcc, delivery.message.attachments);
       if (result.sent) {
         await this.prisma.$transaction([
           this.prisma.outboundDelivery.update({ where: { id }, data: { status: 'SENT', providerMessageId: result.messageId ?? null, lastError: null, sentAt: new Date(), lockedAt: null } }),
           this.prisma.message.update({ where: { id: delivery.messageId }, data: { state: 'SENT', sentAt: new Date() } }),
+          this.prisma.outboundDeliveryEvent.create({ data: { deliveryId: id, eventType: 'SENT', provider: delivery.provider, detail: result.messageId ? `SMTP accepted; provider message ID: ${result.messageId}` : 'SMTP accepted message', occurredAt: new Date() } }),
         ]);
         this.logger.log(`Delivery ${id} accepted by SMTP`);
         return;
@@ -64,6 +69,7 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
       await this.prisma.$transaction([
         this.prisma.outboundDelivery.update({ where: { id }, data: { status: terminal ? 'FAILED' : 'RETRYING', lastError: result.error ?? 'Delivery failed', nextAttemptAt: terminal ? new Date() : new Date(Date.now() + delay * 1000), failedAt: terminal ? new Date() : null, lockedAt: null } }),
         this.prisma.message.update({ where: { id: delivery.messageId }, data: { state: terminal ? 'FAILED' : 'QUEUED' } }),
+        this.prisma.outboundDeliveryEvent.create({ data: { deliveryId: id, eventType: terminal ? 'FAILED' : 'RETRYING', provider: delivery.provider, detail: `${result.retryable === false ? 'Permanent' : 'Temporary'} delivery failure: ${result.error ?? 'Delivery failed'}`.slice(0, 2000), occurredAt: new Date() } }),
       ]);
       if (terminal && result.retryable === false) this.logger.warn(`Delivery ${id} failed permanently (${result.errorCode ?? 'unknown code'})`);
     } catch (e) {
@@ -71,7 +77,11 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
       if (delivery) {
         const terminal = delivery.attempts >= delivery.maxAttempts;
         const delay = Math.min(3600, Math.pow(2, Math.max(1, delivery.attempts)) * 30);
-        await this.prisma.outboundDelivery.update({ where: { id }, data: { status: terminal ? 'FAILED' : 'RETRYING', lastError: (e as Error).message.slice(0, 2000), nextAttemptAt: new Date(Date.now() + delay * 1000), failedAt: terminal ? new Date() : null, lockedAt: null } }).catch(() => undefined);
+        await this.prisma.$transaction([
+          this.prisma.outboundDelivery.update({ where: { id }, data: { status: terminal ? 'FAILED' : 'RETRYING', lastError: (e as Error).message.slice(0, 2000), nextAttemptAt: new Date(Date.now() + delay * 1000), failedAt: terminal ? new Date() : null, lockedAt: null } }),
+          this.prisma.outboundDeliveryEvent.create({ data: { deliveryId: id, eventType: terminal ? 'FAILED' : 'RETRYING', provider: delivery.provider, detail: `Worker exception: ${(e as Error).message}`.slice(0, 2000), occurredAt: new Date() } }),
+          this.prisma.message.update({ where: { id: delivery.messageId }, data: { state: terminal ? 'FAILED' : 'QUEUED' } }),
+        ]).catch(() => undefined);
         await this.prisma.message.update({ where: { id: delivery.messageId }, data: { state: terminal ? 'FAILED' : 'QUEUED' } }).catch(() => undefined);
       }
       this.logger.error(`Delivery ${id} processing error`, (e as Error).message);
