@@ -73,6 +73,12 @@ services:
         generateValue: true
       - key: ATTACHMENTS_DIR
         value: /var/data/mailday-attachments
+      - key: CLAMAV_HOST
+        sync: false
+      - key: CLAMAV_PORT
+        value: 3310
+      - key: CLAMAV_TIMEOUT_MS
+        value: 10000
 
 databases:
   - name: mailday-db
