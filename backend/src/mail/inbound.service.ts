@@ -46,11 +46,19 @@ export class InboundService {
     if (!payload.rawMime && !payload.to) throw new BadRequestException('Provide rawMime or recipient information');
 
     if (payload.rawMime && Buffer.byteLength(payload.rawMime, 'utf8') > 5 * 1024 * 1024) throw new BadRequestException('Inbound MIME payload exceeds 5 MB limit');
-    const parsed = payload.rawMime ? await simpleParser(Buffer.from(payload.rawMime)) : null;
+    let parsed = null;
+    if (payload.rawMime) {
+      try {
+        parsed = await simpleParser(Buffer.from(payload.rawMime));
+      } catch (error) {
+        throw new BadRequestException('Inbound MIME payload could not be parsed');
+      }
+    }
     const recipients = this.normalizeAddresses(payload.to ?? parsed?.to);
     if (!recipients.length) throw new BadRequestException('No recipient address found');
-    const provider = (payload.provider ?? 'webhook').slice(0, 64);
-    const providerMessageId = (payload.messageId ?? parsed?.messageId ?? createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex')).slice(0, 255);
+    if (recipients.length > 50) throw new BadRequestException('Inbound message exceeds the 50-recipient limit');
+    const provider = (payload.provider ?? 'webhook').trim().replace(/[\\u0000-\\u001f\\u007f]/g, '').slice(0, 64) || 'webhook';
+    const providerMessageId = (payload.messageId ?? parsed?.messageId ?? createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex')).trim().replace(/[\\u0000-\\u001f\\u007f]/g, '').slice(0, 255) || createHash('sha256').update(payload.rawMime ?? JSON.stringify(payload)).digest('hex').slice(0, 64);
 
     const from = this.normalizeAddresses(payload.from ?? parsed?.from)[0] ?? 'unknown@unknown';
     const subject = payload.subject ?? parsed?.subject ?? '';
