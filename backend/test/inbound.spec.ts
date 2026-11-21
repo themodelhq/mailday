@@ -2,8 +2,8 @@ import { InboundService } from '../src/mail/inbound.service';
 
 const config: any = { get: (key: string) => key === 'INBOUND_WEBHOOK_TOKEN' ? 'test-token' : undefined };
 const prisma: any = {};
-const redis: any = {};
-const es: any = {};
+const redis: any = { invalidatePrefix: jest.fn(async () => undefined) };
+const es: any = { indexMessage: jest.fn(async () => undefined) };
 const scanner: any = { scan: jest.fn(async () => 'UNCHECKED') };
 
 describe('InboundService request validation', () => {
@@ -22,7 +22,7 @@ describe('InboundService request validation', () => {
         findUnique: jest.fn(async () => ({ id: 'receipt-1', status: 'PROCESSING', receivedAt: recent })),
         updateMany: jest.fn(async () => ({ count: 0 })),
       },
-      message: { create: jest.fn() },
+      message: { create: jest.fn(), findFirst: jest.fn(async () => null) },
     };
     const localService = new InboundService(config, localPrisma, redis, es, scanner);
     const result = await localService.receive('test-token', {
@@ -44,7 +44,7 @@ describe('InboundService request validation', () => {
           .mockResolvedValueOnce({ count: 1 }),
         update: jest.fn(async () => ({})),
       },
-      message: { create: jest.fn(async () => ({ id: 'message-1' })) },
+      message: { create: jest.fn(async () => ({ id: 'message-1' })), findFirst: jest.fn(async () => null) },
       attachment: { create: jest.fn() },
     };
     const localService = new InboundService(config, localPrisma, redis, es, scanner);
