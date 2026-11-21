@@ -13,6 +13,9 @@ export interface TokenPair { accessToken: string; refreshToken: string; }
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger('Auth');
+  // A precomputed-at-startup hash keeps unknown/inactive account checks close to the
+  // cost of a real password check, reducing account-enumeration timing signals.
+  private readonly dummyPasswordHash = bcrypt.hash('MailDayDummyPasswordNotForLogin!', 12);
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -62,7 +65,10 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ email: normalized.toLowerCase() }, { username: normalized.toLowerCase() }] },
     });
-    if (!user || user.isActive === false) return null;
+    if (!user || user.isActive === false) {
+      await bcrypt.compare(password, await this.dummyPasswordHash);
+      return null;
+    }
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return null;
     return user;
