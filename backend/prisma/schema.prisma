@@ -86,6 +86,7 @@ model Message {
   @@index([ownerId, mailbox, sentAt])
   @@index([ownerId, isRead])
   @@index([ownerId, threadId])
+  attachments Attachment[]
   outboundDelivery OutboundDelivery?
 }
 
@@ -153,4 +154,17 @@ model InboundReceipt {
   @@unique([provider, providerMessageId, recipient])
   @@index([ownerId, receivedAt])
   @@index([status, receivedAt])
+}
+
+
+model Attachment {
+  id          String   @id @default(uuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  originalName String
+  storageName String   @unique
+  mimeType    String
+  size        Int
+  createdAt   DateTime @default(now())
+  @@index([messageId, createdAt])
 }
