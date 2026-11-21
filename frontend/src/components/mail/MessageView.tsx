@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Star, Archive, Trash2, Reply, Loader2, Sparkles, FileText, Copy, X, Pencil } from 'lucide-react';
-import { messagesApi, Message, aiApi, AiMode } from '@/lib/api';
+import { messagesApi, Message, aiApi, AiMode, AttachmentInfo } from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
 import { useAppDispatch } from '@/hooks';
 import { openComposeWith } from '@/features/ui/uiSlice';
@@ -23,7 +23,7 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
     queryFn: () => messagesApi.get(id),
   });
 
-  const { data: threadMessages = [] } = useQuery({ queryKey: ['thread', data?.threadId], queryFn: () => messagesApi.thread(data!.threadId!), enabled: Boolean(data?.threadId), staleTime: 30_000 });
+  const { data: messageAttachments = [] } = useQuery({ queryKey: ['attachments', id], queryFn: () => messagesApi.attachments(id), enabled: Boolean(data?.hasAttachments) });\n\n  const { data: threadMessages = [] } = useQuery({ queryKey: ['thread', data?.threadId], queryFn: () => messagesApi.thread(data!.threadId!), enabled: Boolean(data?.threadId), staleTime: 30_000 });
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['message', id] });
@@ -137,6 +137,13 @@ export default function MessageView({ id, onClosed }: { id: string; onClosed: ()
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">
           {stripHtml(m.body)}
         </p>
+        {messageAttachments.length > 0 && <section className="mt-6 rounded-lg border border-slate-200 p-3 dark:border-white/10">
+          <h3 className="mb-2 text-sm font-medium">Attachments ({messageAttachments.length})</h3>
+          {messageAttachments.map((a: AttachmentInfo) => <div key={a.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+            <span className="truncate">{a.originalName} <span className="text-xs text-slate-500">({Math.ceil(a.size / 1024)} KB)</span></span>
+            <button className="btn-ghost text-xs" onClick={() => messagesApi.downloadAttachment(a.id, a.originalName)}>Download</button>
+          </div>)}
+        </section>}
         {m.labels.length > 0 && (
           <div className="mt-6 flex flex-wrap gap-2">
             {m.labels
