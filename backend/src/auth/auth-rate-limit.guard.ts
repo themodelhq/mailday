@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, TooManyRequestsException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { RateLimitService } from './rate-limit.service';
 
@@ -23,7 +23,7 @@ export class AuthRateLimitGuard implements CanActivate {
     res.setHeader('X-RateLimit-Remaining', String(result.remaining));
     if (!result.allowed) {
       res.setHeader('Retry-After', String(result.retryAfterSeconds));
-      throw new TooManyRequestsException('Too many authentication requests. Please try again later.');
+      throw new HttpException('Too many authentication requests. Please try again later.', HttpStatus.TOO_MANY_REQUESTS);
     }
     return true;
   }
