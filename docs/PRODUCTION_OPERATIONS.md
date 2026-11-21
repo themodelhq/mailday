@@ -78,3 +78,5 @@ Dependabot is configured to check backend, frontend, and GitHub Actions dependen
 ## Automated dependency audit reports
 
 A scheduled GitHub Actions workflow runs `npm audit` for backend and frontend dependencies weekly, on dependency-lockfile changes, and on manual dispatch. Reports are uploaded as 30-day workflow artifacts. The audit reporting job does not automatically fail the build: findings should be reviewed and remediated through dependency update PRs so fixes can be tested without unexpectedly blocking deployment.
+
+Major NestJS and Prisma updates are intentionally held by Dependabot until a coordinated framework migration is planned. Their individual packages must stay on compatible major versions. Minor/patch updates continue through grouped PRs.
