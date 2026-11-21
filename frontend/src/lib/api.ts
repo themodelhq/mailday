@@ -270,6 +270,8 @@ export const mailApi = {
     fetchWithAuth<ImapAccount>(`${api}/mail/imap/${id}/sync`, { method: 'POST' }),
 };
 
+export interface AttachmentInfo { id: string; originalName: string; mimeType: string; size: number; createdAt: string; }
+
 export const messagesApi = {
   list: (params: { mailbox?: string; search?: string; page?: number; limit?: number } = {}) => {
     const qs = new URLSearchParams();
