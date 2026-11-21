@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
 export interface SendResult {
   sent: boolean;
@@ -48,7 +50,7 @@ export class MailService {
     }
   }
 
-  async send(to: string[], subject: string, html: string, cc: string[] = [], bcc: string[] = []): Promise<SendResult> {
+  async send(to: string[], subject: string, html: string, cc: string[] = [], bcc: string[] = [], attachments: { storageName: string; originalName: string; mimeType: string }[] = []): Promise<SendResult> {
     if (!this.transporter) {
       this.logger.debug('SMTP not configured — message stored locally (demo mode).');
       return { sent: false, error: 'SMTP_NOT_CONFIGURED' };
