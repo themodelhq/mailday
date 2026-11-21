@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { AiMode, AiTone } from './ai.service';
 
 export class AiGenerateDto {
@@ -7,10 +7,12 @@ export class AiGenerateDto {
 
   @IsString()
   @MinLength(1)
+  @MaxLength(20000)
   text: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   subject?: string;
 
   @IsOptional()
