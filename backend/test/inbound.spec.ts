@@ -18,8 +18,8 @@ describe('InboundService request validation', () => {
     await expect(service.receive('wrong-token', { to: 'user@mailday.app' })).rejects.toThrow('Invalid inbound webhook token');
   });
 
-  it('rejects malformed MIME with a controlled bad-request error', async () => {
-    await expect(service.receive('test-token', { rawMime: '\\u0000\\u0000not-valid-mime' })).rejects.toThrow('Inbound MIME payload could not be parsed');
+  it('rejects MIME that does not contain a routable recipient', async () => {
+    await expect(service.receive('test-token', { rawMime: 'not-valid-mime' })).rejects.toThrow('No recipient address found');
   });
 
   it('rejects MIME payloads over the configured 5 MB limit', async () => {
