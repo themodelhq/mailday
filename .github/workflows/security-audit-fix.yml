@@ -35,7 +35,7 @@ jobs:
         run: npm audit fix || echo "Audit still reports findings; lockfile updates will be reviewed separately."
       - name: Apply targeted frontend security upgrades
         working-directory: frontend
-        run: npm install next@^15.5.29 eslint-config-next@^15.5.29 zod@^4.6.7
+        run: npm install next@^16.4.6 eslint-config-next@^16.4.6 react@^19.2.5 react-dom@^19.2.5 @types/react@^19.2.7 @types/react-dom@^19.2.3 zod@^4.6.7
       - name: Commit updated lockfiles
         run: |
           git config user.name "github-actions[bot]"
