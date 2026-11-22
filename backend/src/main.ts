@@ -80,7 +80,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // Allow non-browser requests (curl, server-to-server, health checks) with no Origin header.
       if (!origin) return callback(null, true);
 

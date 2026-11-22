@@ -47,7 +47,9 @@ Audit health/readiness, structured logs and request IDs, delivery metrics/admin 
 Audit Netlify/Render configuration, environment validation, migration safety, persistent attachment storage, database backup and restore instructions, startup/shutdown, and deployment smoke checks. Add automated checks where feasible. Verified: Render migrations now run at service startup (not build), attachment storage is configured on the persistent disk, backup/restore runbook added, deployment config regression tests added, README deployment instructions corrected.
 
 ### Stage 41 — End-to-end release validation and final production checklist — IN PROGRESS / RELEASE BLOCKED
-Final CI verified green (backend build/tests and frontend production build). Dependency audit artifacts reviewed for both packages. The audit found 3 critical and 25 high vulnerabilities combined (backend: 2 critical/16 high; frontend: 1 critical/9 high). Critical/high direct dependency upgrades require major-version compatibility work; see docs/RELEASE_VALIDATION_CHECKLIST.md. The final checklist and backup/recovery documentation are published. Stage 41 is not complete and MailDay is **not approved for production release** until these findings are remediated or individually risk-reviewed and accepted, and live staging smoke/restore tests are performed.
+Dependency remediation has been completed and verified by GitHub Actions run [45005221782](https://github.com/themodelhq/mailday/actions/runs/45005221782): backend Prisma generation, production build, and Jest tests passed; frontend installation and production build passed; final npm audit reports **0 vulnerabilities for backend and 0 for frontend** (all severity levels). Audit JSON artifacts were reviewed and retained.
+
+The release checklist and backup/recovery documentation are published. Stage 41 remains incomplete and MailDay is **not approved for production release** until live staging smoke tests, provider integrations, and a staging restore drill are performed, and remaining operational/legal prerequisites are reviewed.
 
 ## Stage completion gate
 
