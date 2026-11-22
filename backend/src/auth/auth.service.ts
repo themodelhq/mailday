@@ -43,7 +43,7 @@ export class AuthService {
   private generatedEmail(username: string): string {
     const configuredDomain = this.config.get<string>('MAILDAY_EMAIL_DOMAIN') ?? 'mailday.netlify.com';
     const domain = configuredDomain.trim().replace(/^@/, '').toLowerCase();
-    if (!/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$/.test(domain)) {
+    if (!/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(domain)) {
       throw new Error('MAILDAY_EMAIL_DOMAIN must be a valid domain name');
     }
     return `${username}@${domain}`;
