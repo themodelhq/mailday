@@ -8,6 +8,10 @@ on:
       - security/audit-fix-semver
     paths:
       - .github/workflows/security-audit-fix.yml
+      - backend/package.json
+      - backend/package-lock.json
+      - frontend/package.json
+      - frontend/package-lock.json
   workflow_dispatch:
 
 permissions:
