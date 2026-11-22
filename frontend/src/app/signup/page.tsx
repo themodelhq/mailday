@@ -14,7 +14,6 @@ import { setSession, clearSession } from '@/features/session/sessionSlice';
 const schema = z
   .object({
     displayName: z.string().min(1, 'Enter your name'),
-    email: z.string().email('Enter a valid email'),
     username: z.string().min(3, 'At least 3 characters'),
     password: z.string().min(8, 'At least 8 characters'),
     confirm: z.string(),
@@ -31,6 +30,7 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
+    watch,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
@@ -39,10 +39,13 @@ export default function SignupPage() {
     if (isAuthed()) router.replace('/dashboard');
   }, [router]);
 
+  const usernameValue = watch('username') ?? '';
+  const safeUsername = usernameValue.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+  const provisionalDomain = process.env.NEXT_PUBLIC_MAILDAY_EMAIL_DOMAIN ?? 'mailday.netlify.com';
+
   async function onSubmit(values: FormValues) {
     try {
       await authApi.register({
-        email: values.email,
         username: values.username,
         password: values.password,
         displayName: values.displayName,
@@ -85,10 +88,10 @@ export default function SignupPage() {
               <input className="input" placeholder="Ada Lovelace" {...register('displayName')} />
               {errors.displayName && <p className="mt-1 text-xs text-red-500">{errors.displayName.message}</p>}
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Email</label>
-              <input className="input" placeholder="you@example.com" {...register('email')} />
-              {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+            <div className="rounded-lg border border-brand-200 bg-brand-50/50 p-3 text-sm dark:border-brand-900 dark:bg-brand-950/20">
+              <p className="font-medium">Your MailDay address</p>
+              <p className="mt-1 font-mono text-brand-600">{safeUsername ? `${safeUsername}@${provisionalDomain}` : `your-username@${provisionalDomain}`}</p>
+              <p className="mt-1 text-xs text-slate-500">A temporary MailDay address is assigned automatically. Incoming email routing will be enabled when MailDay’s email domain is configured.</p>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Username</label>
