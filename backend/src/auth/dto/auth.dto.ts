@@ -8,7 +8,7 @@ export class RegisterDto {
   @IsString()
   @MinLength(3)
   @MaxLength(30)
-  @Matches(/^[a-zA-Z0-9._-]+$/, { message: 'Username may contain only letters, numbers, dots, underscores, and hyphens' })
+  @Matches(/^(?!.*\\.\\.)[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])$/, { message: 'Username must start and end with a letter or number and may contain letters, numbers, dots, underscores, and hyphens (no consecutive dots)' })
   username: string;
 
   @IsString()
