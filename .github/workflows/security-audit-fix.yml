@@ -1,0 +1,44 @@
+name: Security remediation (semver-compatible)
+
+on:
+  push:
+    branches:
+      - security/audit-fix-semver
+    paths:
+      - .github/workflows/security-audit-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  remediation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/audit-fix-semver
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Apply non-major npm audit fixes (backend)
+        working-directory: backend
+        run: npm audit fix
+      - name: Apply non-major npm audit fixes (frontend)
+        working-directory: frontend
+        run: npm audit fix
+      - name: Commit updated lockfiles
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/package-lock.json frontend/package-lock.json
+          if git diff --cached --quiet; then
+            echo "No semver-compatible lockfile changes produced."
+            exit 0
+          fi
+          git commit -m "security: apply semver-compatible audit fixes"
+          git push origin security/audit-fix-semver
