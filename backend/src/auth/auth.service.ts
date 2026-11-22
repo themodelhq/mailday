@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import * as bcrypt from 'bcryptjs';
@@ -29,11 +29,11 @@ export class AuthService {
     const sessionVersion = Number(await this.redis.client.get(`auth:session-version:${userId}`) ?? 0);
     const accessToken = this.jwt.sign(
       { sub: userId, email, username, role, jti: accessJti, sv: sessionVersion },
-      { secret: this.config.get<string>('JWT_SECRET'), expiresIn: this.config.get<string>('JWT_EXPIRES_IN') ?? '15m' },
+      { secret: this.config.get<string>('JWT_SECRET'), expiresIn: (this.config.get<string>('JWT_EXPIRES_IN') ?? '15m') as JwtSignOptions['expiresIn'] },
     );
     const refreshToken = this.jwt.sign(
       { sub: userId, email, username, role, jti },
-      { secret: this.config.get<string>('JWT_REFRESH_SECRET'), expiresIn: this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d' },
+      { secret: this.config.get<string>('JWT_REFRESH_SECRET'), expiresIn: (this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d') as JwtSignOptions['expiresIn'] },
     );
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await db.refreshToken.create({ data: { userId, token: jti, expiresAt } });
