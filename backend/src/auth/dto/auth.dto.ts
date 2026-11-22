@@ -1,11 +1,14 @@
 import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, MaxLength, Matches } from 'class-validator';
 
 export class RegisterDto {
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @IsString()
   @MinLength(3)
+  @MaxLength(30)
+  @Matches(/^(?!.*\.\.)[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])$/, { message: 'Username must start and end with a letter or number and may contain letters, numbers, dots, underscores, and hyphens (no consecutive dots)' })
   username: string;
 
   @IsString()

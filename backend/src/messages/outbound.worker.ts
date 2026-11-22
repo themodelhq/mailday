@@ -14,7 +14,7 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
   constructor(private prisma: PrismaService, private redis: RedisService, private mail: MailService) {}
 
   onModuleInit() {
-    if (!this.enabled) { this.logger.warn('Outbound worker disabled by configuration'); return; }
+    if (!this.enabled) { this.logger.error('Outbound worker is DISABLED by OUTBOUND_WORKER_ENABLED=false. Pending deliveries will remain queued until it is enabled.'); return; }
     this.timer = setInterval(() => void this.tick(), this.pollMs);
     this.timer.unref?.();
     void this.tick();
@@ -24,7 +24,7 @@ export class OutboundWorker implements OnModuleInit, OnModuleDestroy {
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 
   private async tick() {
-    if (this.running || !this.mail.enabled) return;
+    if (this.running) return;
     this.running = true;
     try {
       // Recover jobs abandoned by a crashed worker after the processing lease expires.

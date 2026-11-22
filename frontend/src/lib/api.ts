@@ -212,7 +212,7 @@ export async function fetchWithAuth<T = unknown>(url: string, init: RequestInit 
 const api = `${API_URL}/api`;
 
 export const authApi = {
-  async register(body: { email: string; username: string; password: string; displayName?: string }) {
+  async register(body: { email?: string; username: string; password: string; displayName?: string }) {
     const data = await fetchWithAuth<TokenPair>(`${api}/auth/register`, {
       method: 'POST',
       body: JSON.stringify(body),

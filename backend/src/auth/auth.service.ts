@@ -40,9 +40,18 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  private generatedEmail(username: string): string {
+    const configuredDomain = this.config.get<string>('MAILDAY_EMAIL_DOMAIN') ?? 'mailday.netlify.com';
+    const domain = configuredDomain.trim().replace(/^@/, '').toLowerCase();
+    if (!/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(domain)) {
+      throw new Error('MAILDAY_EMAIL_DOMAIN must be a valid domain name');
+    }
+    return `${username}@${domain}`;
+  }
+
   async register(dto: RegisterDto): Promise<TokenPair> {
-    const email = dto.email.trim().toLowerCase();
     const username = dto.username.trim().toLowerCase();
+    const email = dto.email?.trim().toLowerCase() || this.generatedEmail(username);
     const existing = await this.prisma.user.findFirst({ where: { OR: [{ email }, { username }] } });
     if (existing) throw new ConflictException('Email or username already in use');
     const passwordHash = await bcrypt.hash(dto.password, 12);
@@ -58,7 +67,7 @@ export class AuthService {
       }
       throw error;
     }
-    this.logger.log('Registered new account');
+    this.logger.log('Registered new account with MailDay address');
     return this.issueTokens(user.id, user.email, user.username, user.role);
   }
 
