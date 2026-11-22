@@ -22,7 +22,7 @@
   - `GET /users/me`, `PATCH /users/me`
   - `GET /messages`, `GET /messages/:id`, `POST /messages`, `PATCH /messages/:id`, `DELETE /messages/:id`
   - **Hybrid search** — Elasticsearch when `ELASTICSEARCH_URL` is set (keyword `multi_match` + semantic kNN when embeddings are enabled); automatically degrades to Prisma `ILIKE` otherwise.
-  - **SMTP integration** — Nodemailer can send outbound messages when `SMTP_*` is configured. The API now rejects sends when SMTP is unavailable or the provider rejects the message instead of falsely recording a successful Sent message.
+  - **Outbound email delivery** — Resend HTTPS API (`RESEND_API_KEY`) is preferred to avoid SMTP port/connectivity timeouts; Nodemailer SMTP remains a fallback with explicit connection, greeting, and socket timeouts.
   - **AI generation** — `POST /ai/generate` (modes: `draft`/`reply`/`summarize`/`rewrite`, with tone) via a **z.ai (Zhipu AI)** OpenAI-compatible Chat Completions API; returns HTTP 503 when `ZAI_API_KEY` is unset.
   - **External IMAP account import** — `POST/GET/DELETE /mail/imap` to connect/list/remove accounts, `POST /mail/imap/:id/sync` for on-demand import, plus a background poller. Account credentials are tested before storage and encrypted at rest (AES-256-GCM, `VAULT_SECRET`). This is not yet native Mailday inbound mail.
   - **Admin API** — `GET /admin/stats|users|messages`, `PATCH /admin/users/:id`, `DELETE /admin/users/:id`, protected by a role-aware `AdminGuard`.
@@ -112,7 +112,7 @@ See `backend/.env.example`. Key vars:
 | `ELASTICSEARCH_URL` | Enables Elasticsearch hybrid search (omit for Prisma `ILIKE`) |
 | `EMBEDDINGS_ENABLED` / `ZAI_API_KEY` | Enables semantic (kNN) search AND AI draft/reply/summarize generation (via z.ai) |
 | `EMBEDDING_DIMS` / `EMBEDDING_MODEL` | Vector dims (default 2048 for z.ai `embedding-3`) and embedding model |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | Real outbound email (omit for demo mode) |
+| `RESEND_API_KEY` | Preferred outbound delivery provider; bypasses SMTP network connectivity |\n| `RESEND_WEBHOOK_SECRET` | Verifies Resend inbound webhook signatures |\n| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | SMTP fallback if Resend is not configured |
 | `MAIL_FROM` | From address for sent mail |
 | `ZAI_BASE_URL` / `ZAI_MODEL` | z.ai Chat Completions endpoint (default `https://api.z.ai/v1/chat/completions`) and model (default `glm-4-flash`) |
 | `VAULT_SECRET` | Secret used to AES-encrypt stored IMAP passwords (use a strong 32-byte-grade value) |
@@ -143,7 +143,7 @@ MIT.
 
 Outbound messages are now persisted before delivery. When SMTP is configured, sending creates a message in `QUEUED` state and an `OutboundDelivery` record. A background worker polls the database, claims work using Redis locks, and delivers via SMTP. It records provider message IDs and transitions to `SENT`, `RETRYING`, or `FAILED`; retry delays use exponential backoff (capped at one hour), with eight attempts by default. Abandoned processing records are recovered after a three-minute lease.
 
-Delivery status is available to the authenticated message owner at `GET /api/messages/:id/delivery`. Configure `SMTP_HOST` and related `SMTP_*` variables before sending. Worker settings: `OUTBOUND_WORKER_ENABLED=true` and `OUTBOUND_WORKER_POLL_MS=5000`.
+Delivery status is available to the authenticated message owner at `GET /api/messages/:id/delivery`. Configure `RESEND_API_KEY` to use HTTPS delivery (recommended for Render); otherwise configure `SMTP_HOST` and related `SMTP_*` variables. Worker settings: `OUTBOUND_WORKER_ENABLED=true` and `OUTBOUND_WORKER_POLL_MS=5000`. SMTP fallback has configurable `SMTP_CONNECTION_TIMEOUT_MS`, `SMTP_GREETING_TIMEOUT_MS`, and `SMTP_SOCKET_TIMEOUT_MS`.
 
 **Operational note:** SMTP acceptance is not proof that the recipient's mailbox received the email. Provider-neutral bounce-event ingestion is now available, but each sending provider must be configured to forward bounce events to MailDay. The queue also cannot guarantee exactly-once delivery if an SMTP server accepts a message and the database update fails immediately afterward; this is a distributed-systems edge case that can result in a retry duplicate.
 
@@ -164,7 +164,7 @@ Authenticated delivery status `GET /api/messages/:id/delivery` now includes the 
 
 **Provider integration note:** MailDay exposes the generic receiver, but a provider-specific webhook adapter/configuration is still needed to translate that provider's event format and deliver it to this endpoint. SMTP itself does not supply a universal bounce webhook.
 
-### Native inbound webhook (Phase 3 foundation)
+### Inbound mail setup (provider integration)\n\nMailDay supports the generic inbound endpoint and a Resend receiving webhook adapter at `POST /api/mail/inbound/resend`. The Resend adapter verifies Svix signatures using `RESEND_WEBHOOK_SECRET`, fetches the message content through Resend's HTTPS Receiving API, then routes the email by recipient address into the corresponding MailDay inbox. Configure a Resend receiving address/domain and subscribe the webhook to `email.received`. Use `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET` in Render.\n\n**Important:** the provisional `mailday.netlify.com` addresses are not mail-hosted and cannot receive external email. Set `MAILDAY_EMAIL_DOMAIN` to a receiving domain that you control and have configured with your provider before creating accounts. Existing accounts retain their current email addresses; changing this variable does not rename them. The Resend webhook adapter currently imports message text/HTML; attachment import via Resend attachment API is not included yet.\n\n### Native inbound webhook (Phase 3 foundation)
 
 Mailday now exposes an authenticated inbound gateway endpoint: `POST /api/mail/inbound/webhook`. Configure `INBOUND_WEBHOOK_TOKEN` (Render Blueprint generates one) and have your inbound-email provider post a JSON payload with header `X-Mailday-Inbound-Token`. The endpoint accepts either `rawMime` (RFC 822/MIME text) or parsed fields such as `provider`, `messageId`, `from`, `to`, `subject`, `text`, and `html`. Raw MIME payloads are limited to 5 MB at the service layer.
 

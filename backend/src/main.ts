@@ -45,7 +45,7 @@ async function bootstrap() {
   });
 
   // Inbound MIME webhook accepts up to 5 MB plus JSON overhead.
-  app.use(json({ limit: '6mb' }));
+  app.use(json({ limit: '6mb', verify: (req: Request & { rawBody?: Buffer }, _res, buffer) => { req.rawBody = Buffer.from(buffer); } }));
   app.use(urlencoded({ extended: true, limit: '6mb' }));
 
   const config = app.get(ConfigService);

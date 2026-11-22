@@ -87,7 +87,16 @@ export class InboundService {
     const results: Array<{ recipient: string; status: string }> = [];
 
     for (const recipient of recipients) {
-      const user = await this.prisma.user.findFirst({ where: { email: recipient, isActive: true } });
+      let user = await this.prisma.user.findFirst({ where: { email: recipient, isActive: true } });
+      // Route addresses on the configured MailDay receiving domain to existing
+      // usernames even when their stored provisional email domain is different.
+      if (!user) {
+        const configuredDomain = (process.env.MAILDAY_EMAIL_DOMAIN ?? 'mailday.netlify.com').trim().replace(/^@/, '').toLowerCase();
+        const [localPart, domain] = recipient.toLowerCase().split('@');
+        if (domain === configuredDomain && localPart && /^[a-z0-9][a-z0-9._-]{1,28}[a-z0-9]$/.test(localPart)) {
+          user = await this.prisma.user.findFirst({ where: { username: localPart, isActive: true } });
+        }
+      }
       if (!user) { results.push({ recipient, status: 'UNROUTABLE' }); continue; }
       let receipt: { id: string };
       let claimStatus = 'RECEIVED';
