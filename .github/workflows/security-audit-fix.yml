@@ -1,5 +1,7 @@
 name: Security remediation (semver-compatible)
 
+# Re-run this workflow after remediation changes to refresh audit artifacts.
+# It intentionally tolerates unresolved findings so reports can be reviewed.
 on:
   push:
     branches:
