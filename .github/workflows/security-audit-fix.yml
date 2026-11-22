@@ -42,7 +42,7 @@ jobs:
         run: npm install next@^16.4.6 eslint-config-next@^16.4.6 react@^19.2.5 react-dom@^19.2.5 @types/react@^19.2.7 @types/react-dom@^19.2.3 eslint@^9.39.1 zod@^4.6.7
       - name: Apply targeted backend major security upgrades
         working-directory: backend
-        run: npm install @nestjs/common@^11.1.17 @nestjs/core@^11.1.17 @nestjs/platform-express@^11.1.17 @nestjs/config@^4.0.4 @nestjs/cli@^11.0.17 @nestjs/testing@^11.1.17 @nestjs/schematics@^11.1.0 @nestjs/jwt@^11.0.2 @nestjs/passport@^11.0.5 @typescript-eslint/eslint-plugin@^8.73.0 @typescript-eslint/parser@^8.73.0 nodemailer@^10.6.1
+        run: npm install @nestjs/common@^11.1.17 @nestjs/core@^11.1.17 @nestjs/platform-express@^11.1.17 @nestjs/config@^4.0.4 @nestjs/cli@^12.0.15 @nestjs/testing@^11.1.17 @nestjs/schematics@^11.1.0 @nestjs/jwt@^11.0.2 @nestjs/passport@^11.0.5 @typescript-eslint/eslint-plugin@^8.73.0 @typescript-eslint/parser@^8.73.0 nodemailer@^10.6.1 uuid@^11.1.1
       - name: Verify frontend and backend lockfile synchronization
         run: |
           npm --prefix frontend install --package-lock-only --ignore-scripts
