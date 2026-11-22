@@ -40,9 +40,9 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: OUTBOUND_WORKER_ENABLED
-        value: true
+        value: "true"
       - key: OUTBOUND_WORKER_POLL_MS
-        value: 5000
+        value: "5000"
       - key: MAILDAY_EMAIL_DOMAIN
         value: mailday.netlify.com
       - key: SMTP_HOST
