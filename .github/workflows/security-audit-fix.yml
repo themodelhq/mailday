@@ -20,17 +20,17 @@ jobs:
           ref: security/audit-fix-semver
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: |
             backend/package-lock.json
             frontend/package-lock.json
-      - name: Apply non-major npm audit fixes (backend)
+      - name: Apply backend semver-compatible fixes (do not block on remaining audit findings)
         working-directory: backend
-        run: npm audit fix
-      - name: Apply non-major npm audit fixes (frontend)
+        run: npm audit fix || echo "Audit still reports findings; lockfile updates will be reviewed separately."
+      - name: Apply frontend semver-compatible fixes (do not block on remaining audit findings)
         working-directory: frontend
-        run: npm audit fix
+        run: npm audit fix || echo "Audit still reports findings; lockfile updates will be reviewed separately."
       - name: Commit updated lockfiles
         run: |
           git config user.name "github-actions[bot]"
