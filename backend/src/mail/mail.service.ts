@@ -91,7 +91,7 @@ export class MailService {
 
   async send(to: string[], subject: string, html: string, cc: string[] = [], bcc: string[] = [], attachments: { storageName: string; originalName: string; mimeType: string }[] = []): Promise<SendResult> {
     if (this.resendApiKey) return this.sendViaResend(to, subject, html, cc, bcc, attachments);
-    if (!this.transporter) return { sent: false, error: 'MAIL_PROVIDER_NOT_CONFIGURED', errorCode: 'MAIL_PROVIDER_NOT_CONFIGURED', retryable: false };
+    if (!this.transporter) return { sent: false, error: 'SMTP_NOT_CONFIGURED', errorCode: 'SMTP_NOT_CONFIGURED', retryable: false };
     try {
       const info = await this.transporter.sendMail({
         from: this.from, to, cc: cc.length ? cc : undefined, bcc: bcc.length ? bcc : undefined, subject, html,
