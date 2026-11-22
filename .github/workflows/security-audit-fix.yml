@@ -31,6 +31,9 @@ jobs:
       - name: Apply frontend semver-compatible fixes (do not block on remaining audit findings)
         working-directory: frontend
         run: npm audit fix || echo "Audit still reports findings; lockfile updates will be reviewed separately."
+      - name: Apply targeted frontend security upgrades
+        working-directory: frontend
+        run: npm install next@^15.5.29 eslint-config-next@^15.5.29 zod@^4.6.7
       - name: Commit updated lockfiles
         run: |
           git config user.name "github-actions[bot]"
