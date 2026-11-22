@@ -44,7 +44,17 @@ services:
       - key: OUTBOUND_WORKER_POLL_MS
         value: "5000"
       - key: MAILDAY_EMAIL_DOMAIN
-        value: mailday.netlify.com
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
+      - key: SMTP_CONNECTION_TIMEOUT_MS
+        value: "15000"
+      - key: SMTP_GREETING_TIMEOUT_MS
+        value: "15000"
+      - key: SMTP_SOCKET_TIMEOUT_MS
+        value: "60000"
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
