@@ -18,8 +18,29 @@ export function classifySendError(error: unknown): { errorCode?: string; retryab
   const errorCode = err?.code;
   if (Number.isFinite(responseCode) && responseCode >= 500) return { errorCode: String(responseCode), retryable: false };
   if (Number.isFinite(responseCode) && responseCode >= 400) return { errorCode: String(responseCode), retryable: true };
-  if (errorCode && ['EAUTH', 'EENVELOPE', 'EMESSAGE'].includes(errorCode)) return { errorCode, retryable: false };
+  // Configuration and permanent DNS failures should not consume the retry queue.
+  if (errorCode && ['EAUTH', 'EENVELOPE', 'EMESSAGE', 'EBADNAME', 'ENOTFOUND', 'EINVAL'].includes(errorCode)) {
+    return { errorCode, retryable: false };
+  }
+  // Temporary DNS, connection, and network failures can recover on retry.
   return { errorCode, retryable: true };
+}
+
+/** Accept a hostname or SMTP URL, but pass Nodemailer a clean hostname. */
+export function normalizeSmtpHost(input: string): string {
+  const raw = input.trim();
+  if (!raw) throw new Error('SMTP_HOST is empty');
+  let hostname: string;
+  try {
+    const parsed = new URL(raw.includes('://') ? raw : `smtp://${raw}`);
+    hostname = parsed.hostname;
+  } catch {
+    throw new Error('Invalid SMTP_HOST. Set it to a hostname such as smtp.gmail.com (not a malformed URL).');
+  }
+  if (!hostname || hostname.includes(' ') || hostname.startsWith(':')) {
+    throw new Error('Invalid SMTP_HOST. Set it to a hostname such as smtp.gmail.com.');
+  }
+  return hostname;
 }
 
 /**
@@ -35,21 +56,29 @@ export class MailService {
   private readonly from: string;
 
   constructor(config: ConfigService) {
-    const host = config.get<string>('SMTP_HOST');
+    const rawHost = config.get<string>('SMTP_HOST');
     this.from = config.get<string>('MAIL_FROM') ?? 'noreply@mailday.app';
-    if (host) {
-      this.transporter = nodemailer.createTransport({
-        host,
-        port: parseInt(config.get<string>('SMTP_PORT') ?? '587', 10),
-        secure: (config.get<string>('SMTP_SECURE') ?? 'false') === 'true',
-        auth: config.get<string>('SMTP_USER')
-          ? { user: config.get<string>('SMTP_USER'), pass: config.get<string>('SMTP_PASS') }
-          : undefined,
-      });
-      this.enabled = true;
-      this.logger.log(`SMTP enabled (${host})`);
+    if (rawHost) {
+      try {
+        const host = normalizeSmtpHost(rawHost);
+        this.transporter = nodemailer.createTransport({
+          host,
+          port: parseInt(config.get<string>('SMTP_PORT') ?? '587', 10),
+          secure: (config.get<string>('SMTP_SECURE') ?? 'false') === 'true',
+          auth: config.get<string>('SMTP_USER')
+            ? { user: config.get<string>('SMTP_USER'), pass: config.get<string>('SMTP_PASS') }
+            : undefined,
+        });
+        this.enabled = true;
+        this.logger.log(`SMTP enabled (${host})`);
+      } catch (error) {
+        this.enabled = false;
+        this.logger.error((error as Error).message);
+        this.logger.error('SMTP disabled due to invalid SMTP_HOST configuration.');
+      }
     } else {
       this.enabled = false;
+      this.logger.warn('SMTP_HOST is not configured; outbound email is disabled.');
     }
   }
 
