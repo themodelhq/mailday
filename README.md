@@ -112,7 +112,10 @@ See `backend/.env.example`. Key vars:
 | `ELASTICSEARCH_URL` | Enables Elasticsearch hybrid search (omit for Prisma `ILIKE`) |
 | `EMBEDDINGS_ENABLED` / `ZAI_API_KEY` | Enables semantic (kNN) search AND AI draft/reply/summarize generation (via z.ai) |
 | `EMBEDDING_DIMS` / `EMBEDDING_MODEL` | Vector dims (default 2048 for z.ai `embedding-3`) and embedding model |
-| `RESEND_API_KEY` | Preferred outbound delivery provider; bypasses SMTP network connectivity |\n| `RESEND_WEBHOOK_SECRET` | Verifies Resend inbound webhook signatures |\n| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | SMTP fallback if Resend is not configured |
+| `RESEND_API_KEY` | Preferred outbound delivery provider; bypasses SMTP network connectivity |
+| `RESEND_FROM` | Sender used for Resend delivery; defaults to `onboarding@resend.dev` for restricted testing |
+| `SMTP_FROM` | Sender used for SMTP delivery |
+| `MAIL_FROM` | Legacy SMTP sender fallback; use `SMTP_FROM` instead |\n| `RESEND_WEBHOOK_SECRET` | Verifies Resend inbound webhook signatures |\n| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | SMTP fallback if Resend is not configured |
 | `MAIL_FROM` | From address for sent mail |
 | `ZAI_BASE_URL` / `ZAI_MODEL` | z.ai Chat Completions endpoint (default `https://api.z.ai/v1/chat/completions`) and model (default `glm-4-flash`) |
 | `VAULT_SECRET` | Secret used to AES-encrypt stored IMAP passwords (use a strong 32-byte-grade value) |
@@ -143,7 +146,7 @@ MIT.
 
 Outbound messages are now persisted before delivery. When SMTP is configured, sending creates a message in `QUEUED` state and an `OutboundDelivery` record. A background worker polls the database, claims work using Redis locks, and delivers via SMTP. It records provider message IDs and transitions to `SENT`, `RETRYING`, or `FAILED`; retry delays use exponential backoff (capped at one hour), with eight attempts by default. Abandoned processing records are recovered after a three-minute lease.
 
-Delivery status is available to the authenticated message owner at `GET /api/messages/:id/delivery`. Configure `RESEND_API_KEY` to use HTTPS delivery (recommended for Render); otherwise configure `SMTP_HOST` and related `SMTP_*` variables. Worker settings: `OUTBOUND_WORKER_ENABLED=true` and `OUTBOUND_WORKER_POLL_MS=5000`. SMTP fallback has configurable `SMTP_CONNECTION_TIMEOUT_MS`, `SMTP_GREETING_TIMEOUT_MS`, and `SMTP_SOCKET_TIMEOUT_MS`.
+Delivery status is available to the authenticated message owner at `GET /api/messages/:id/delivery`. Configure `RESEND_API_KEY` to use HTTPS delivery (recommended for Render); otherwise configure `SMTP_HOST` and related `SMTP_*` variables. Sender settings are provider-specific: `RESEND_FROM` controls Resend and defaults to `onboarding@resend.dev` for testing; `SMTP_FROM` controls SMTP. The legacy `MAIL_FROM` is only a fallback for SMTP. Resend's unverified testing sender can only deliver to the email address associated with your Resend account. Worker settings: `OUTBOUND_WORKER_ENABLED=true` and `OUTBOUND_WORKER_POLL_MS=5000`. SMTP fallback has configurable `SMTP_CONNECTION_TIMEOUT_MS`, `SMTP_GREETING_TIMEOUT_MS`, and `SMTP_SOCKET_TIMEOUT_MS`.
 
 **Operational note:** SMTP acceptance is not proof that the recipient's mailbox received the email. Provider-neutral bounce-event ingestion is now available, but each sending provider must be configured to forward bounce events to MailDay. The queue also cannot guarantee exactly-once delivery if an SMTP server accepts a message and the database update fails immediately afterward; this is a distributed-systems edge case that can result in a retry duplicate.
 

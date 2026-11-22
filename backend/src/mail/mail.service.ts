@@ -51,7 +51,9 @@ export class MailService {
 
   constructor(config: ConfigService) {
     this.resendApiKey = config.get<string>('RESEND_API_KEY') ?? '';
-    this.from = config.get<string>('MAIL_FROM') ?? 'noreply@mailday.app';
+    this.from = this.resendApiKey
+      ? (config.get<string>('RESEND_FROM') ?? 'onboarding@resend.dev')
+      : (config.get<string>('SMTP_FROM') ?? config.get<string>('MAIL_FROM') ?? config.get<string>('SMTP_USER') ?? '');
     const rawHost = config.get<string>('SMTP_HOST');
     if (this.resendApiKey) {
       this.enabled = true;
