@@ -14,8 +14,8 @@ import { setSession, clearSession } from '@/features/session/sessionSlice';
 const schema = z
   .object({
     displayName: z.string().min(1, 'Enter your name'),
-    username: z.string().min(3, 'At least 3 characters').max(30, 'Maximum 30 characters').regex(/^[a-zA-Z0-9._-]+$/, 'Use only letters, numbers, dots, underscores, and hyphens'),
-    password: z.string().min(8, 'At least 8 characters'),
+    username: z.string().min(3, 'At least 3 characters').max(30, 'Maximum 30 characters').regex(/^(?!.*\\.\\.)[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])$/, 'Start and end with a letter or number; no consecutive dots'),
+    password: z.string().min(12, 'At least 12 characters'),
     confirm: z.string(),
   })
   .refine((d) => d.password === d.confirm, {
